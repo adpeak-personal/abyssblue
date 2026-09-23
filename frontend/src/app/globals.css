@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  /* 브랜드 컬러 — 로고(ABYSS BLUE) 원본 색 #20a3d9 = ocean-500 기준 스케일 */
+  --color-ocean-50: #eff8fd;
+  --color-ocean-100: #d8eefb;
+  --color-ocean-200: #b4dff6;
+  --color-ocean-300: #7fc9ef;
+  --color-ocean-400: #45b0e5;
+  --color-ocean-500: #20a3d9;
+  --color-ocean-600: #147aa8;
+  --color-ocean-700: #11658c;
+  --color-ocean-800: #0f5a7d;
+  --color-ocean-900: #0a3b53;
+  --color-ocean-950: #05202e;
+  --color-coral-400: #ff8a65;
+  --color-coral-500: #ff6b45;
+  --color-sand-50: #f7f8f6;
+
+  --font-sans: var(--font-noto-kr), "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-sand-50);
+  color: #1f2933;
+}
+
+/* 썸네일 대체 그라디언트 */
+.grad-reef { background: linear-gradient(135deg, #ff9a8b 0%, #ff6a88 45%, #1f92b5 100%); }
+.grad-kelp { background: linear-gradient(135deg, #a8e063 0%, #2f8f6f 50%, #0b2e42 100%); }
+.grad-abyss { background: linear-gradient(160deg, #1a5f87 0%, #0a3b53 60%, #02121c 100%); }
+.grad-deep { background: linear-gradient(160deg, #20a3d9 0%, #11658c 50%, #05202e 100%); }
+.grad-lagoon { background: linear-gradient(135deg, #7ee8fa 0%, #45b0e5 45%, #147aa8 100%); }
+.grad-coral { background: linear-gradient(135deg, #ffd194 0%, #ff8a65 50%, #b83b5e 100%); }
+.grad-sunset { background: linear-gradient(160deg, #fbd786 0%, #f7797d 50%, #1c5f7c 100%); }
+.grad-light { background: radial-gradient(circle at 50% 0%, #e0f7ff 0%, #3eafcf 35%, #0b2e42 100%); }
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
