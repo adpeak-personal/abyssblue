@@ -1,7 +1,9 @@
 // 운영진 계정을 만든다 (없을 때만).
 //
-//   npm run db:admins          무엇이 만들어지는지 보여주기만
-//   npm run db:admins -- --yes 실제 생성
+//   npm run db:admins                               보여주기만
+//   ADMIN_PASSWORD='...' npm run db:admins -- --yes 실제 생성
+//
+// 비밀번호는 ADMIN_PASSWORD 로만 받는다 — 소스에 기본값을 두지 않는다.
 //
 // 다른 DB 를 대상으로 하려면 환경변수를 바꿔서 실행한다. 예)
 //   DB_HOST=127.0.0.1 DB_PORT=13306 DB_USER=abyssblue DB_PASSWORD=... npm run db:admins -- --yes
@@ -20,8 +22,20 @@ const args = process.argv.slice(2);
 const confirmed = args.includes("--yes");
 const resetPassword = args.includes("--reset-password");
 
-/** 개발·초기 세팅용 비밀번호. 운영에서는 첫 로그인 뒤 바꿔야 한다 */
-const PASSWORD = process.env.ADMIN_PASSWORD ?? "abyss1234";
+/**
+ * 계정 비밀번호 — ADMIN_PASSWORD 로만 받는다.
+ *
+ * 기본값을 두지 않는 이유: 이 저장소는 공개라 소스에 적힌 값은 누구나 읽는다.
+ * 기본값이 있으면 그 값으로 계정이 만들어지고, 바꾸기 전까지 누구나 들어온다.
+ */
+function requirePassword(): string {
+  const pw = process.env.ADMIN_PASSWORD;
+  if (pw) return pw;
+  console.error("ADMIN_PASSWORD 가 없습니다. 비밀번호를 환경변수로 넘겨주세요:");
+  console.error("     ADMIN_PASSWORD='...' npm run db:admins -- --yes");
+  console.error("   (소스에 기본값을 두지 않습니다 — 이 저장소는 공개입니다)");
+  process.exit(1);
+}
 
 interface AdminSpec {
   email: string;
@@ -57,6 +71,9 @@ const AVATAR_COLOR = "#0e7490";
 
 async function main() {
   console.log(`대상 DB: ${describeTarget(getDbConfig())}\n`);
+
+  // 실제로 쓸 때만 필요하다 — 보여주기만 할 때는 비밀번호 없이도 돌아야 한다
+  if (confirmed || resetPassword) requirePassword();
 
   // 허용 목록과 어긋나면 만들어도 나중에 가입 규칙에 막힌다 — 미리 알려준다
   const allowed = new Set(allowedAdminEmails());
@@ -125,7 +142,7 @@ async function main() {
   }
 
   console.log("");
-  const hash = await hashPassword(PASSWORD);
+  const hash = await hashPassword(requirePassword());
   const today = new Date().toISOString().slice(0, 10);
 
   for (const spec of toCreate) {
@@ -161,7 +178,7 @@ async function main() {
     ),
   );
   console.log(
-    "\n⚠️  비밀번호가 공용 값입니다. 운영에서 쓰는 계정이면 첫 로그인 뒤 꼭 바꾸세요.",
+    "\n넷 다 같은 비밀번호로 만들어졌습니다. 운영 계정이면 각자 바꾸게 하세요.",
   );
 }
 
