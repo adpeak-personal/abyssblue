@@ -20,9 +20,10 @@
 #   /api/ · /uploads/ → 127.0.0.1:3061 (api) · 나머지 → 127.0.0.1:3060 (web)
 # DB 는 공용 DB 서버(158.247.244.167) — 그쪽은 이 서버 IP 만 3306 허용.
 #
-# ⚠ 포트 3060·3061 이 이 서버에서 비어 있는지 확인하고 올릴 것
-#   (같은 서버에 peakboard 가 3050·3051 을 쓰고 zzikko 도 올라가 있다):
-#   ss -ltnp | grep -E '306[01]'
+# 포트: 컨테이너 안은 로컬과 같다 (web 5000 / api 5030). 호스트 쪽만 3060·3061 로 내보낸다.
+#   2026-10-28 확인 — 이 서버가 쓰는 포트: 3000(구 abyssblue-front) 3040 3041(zzikko)
+#   3050 3051(peakboard) 4000 4030(atb) 4100(crm2). 3060·3061 은 비어 있다.
+#   새로 올릴 때 다시 확인:  ss -ltnp | grep -E '306[01]'
 # ============================================================
 name: abyssblue
 
@@ -55,7 +56,7 @@ services:
     image: ghcr.io/adpeak-personal/abyssblue-web:${ABYSSBLUE_TAG:-latest}
     container_name: abyssblue-web
     ports:
-      - "127.0.0.1:3060:3000"
+      - "127.0.0.1:3060:5000"
     environment:
       NODE_ENV: production
       TZ: Asia/Seoul
@@ -63,7 +64,7 @@ services:
       # 브라우저가 타는 /api rewrite 는 이미지 빌드 때 구워져 있다 (Dockerfile 의 API_ORIGIN).
       API_BASE_URL: http://api:5030
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
