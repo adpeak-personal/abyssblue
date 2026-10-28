@@ -83,8 +83,22 @@ chmod 600 /opt/abyssblue/.env
 scp deploy/01-database.sql root@158.247.244.167:/tmp/
 ```
 
+비밀번호는 컨테이너가 이미 환경변수로 들고 있는 걸 쓴다. `mysql -p` 로 물어보게 하면
+터미널이 없어서(stdin 이 파일이다) 멈추거나 SQL 첫 줄을 비밀번호로 먹는다.
+
 ```bash
-ssh root@158.247.244.167 "docker exec -i shared-db mysql -uroot -p < /tmp/01-database.sql && rm /tmp/01-database.sql"
+ssh root@158.247.244.167 "docker exec -i shared-db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\"' < /tmp/01-database.sql && rm /tmp/01-database.sql"
+```
+
+그 환경변수가 없다면 (`docker exec shared-db printenv MYSQL_ROOT_PASSWORD` 로 확인),
+컨테이너 안으로 넣고 `source` 로 실행한다 — 이쪽은 비밀번호를 직접 입력한다:
+
+```bash
+ssh root@158.247.244.167 "docker cp /tmp/01-database.sql shared-db:/tmp/ && rm /tmp/01-database.sql"
+```
+
+```bash
+ssh -t root@158.247.244.167 "docker exec -it shared-db mysql -uroot -p -e 'source /tmp/01-database.sql' && docker exec shared-db rm /tmp/01-database.sql"
 ```
 
 **(2) 표** — 내 PC 에서 터널을 열어 올린다. 터널은 띄워 둔 채로 다른 창에서 진행한다:
