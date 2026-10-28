@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
-import { getPoints, getPosts } from "@/lib/data";
+import { apiGet } from "@/lib/api";
+import type { DivePoint, ListPost } from "@/types";
 import { PostTable } from "@/components/board/PostTable";
 import { PointCard } from "@/components/diving/PointCard";
 import { PageTitle } from "@/components/ui";
@@ -8,8 +9,15 @@ export const metadata = { title: "검색" };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
-  const posts = q ? getPosts({ q, size: 30 }).items : [];
-  const points = q ? getPoints({ q }) : [];
+  // 글과 포인트를 같이 찾는다 — 서로 기다릴 이유가 없어 함께 보낸다
+  const [postList, pointList] = q
+    ? await Promise.all([
+        apiGet<{ items: ListPost[]; total: number }>(`/posts?q=${encodeURIComponent(q)}&size=30`),
+        apiGet<DivePoint[]>(`/points?q=${encodeURIComponent(q)}`),
+      ])
+    : [null, null];
+  const posts = postList?.items ?? [];
+  const points = pointList ?? [];
 
   return (
     <div className="space-y-6">

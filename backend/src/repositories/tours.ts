@@ -1,18 +1,34 @@
-// 투어/모집 저장소 — 현재는 인메모리 mock 배열 사용. MySQL 전환 시 이 파일만 교체.
-import { tours } from "../data/mock.js";
+// 투어/모집 저장소 (MySQL)
+import { query, queryOne } from "../db/pool.js";
 import type { Tour } from "../types.js";
+import { toTour, type TourRow } from "./rows.js";
 
 export interface TourQuery {
   type?: Tour["type"];
   status?: Tour["status"];
 }
 
-export function listTours(query: TourQuery = {}): Tour[] {
-  return tours
-    .filter((t) => (!query.type || t.type === query.type) && (!query.status || t.status === query.status))
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+export async function listTours(q: TourQuery = {}): Promise<Tour[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (q.type) {
+    where.push("type = ?");
+    params.push(q.type);
+  }
+  if (q.status) {
+    where.push("status = ?");
+    params.push(q.status);
+  }
+
+  const rows = await query<TourRow>(
+    `SELECT * FROM tours ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY start_date, id`,
+    params,
+  );
+  return rows.map(toTour);
 }
 
-export function findTourById(id: number): Tour | undefined {
-  return tours.find((t) => t.id === id);
+export async function findTourById(id: number): Promise<Tour | undefined> {
+  const row = await queryOne<TourRow>("SELECT * FROM tours WHERE id = ?", [id]);
+  return row ? toTour(row) : undefined;
 }

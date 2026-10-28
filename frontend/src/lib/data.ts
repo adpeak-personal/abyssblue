@@ -9,12 +9,32 @@ import {
   tours,
   users,
 } from "@/data/mock";
-import type { Difficulty, Region } from "@/types";
+import type { Difficulty, ListPost, Post, Region } from "@/types";
 
 export function getUser(id: number) {
-  return users.find((u) => u.id === id)!;
+  return users.find((u) => u.id === id);
 }
 
+/**
+ * mock 글에 작성자를 붙인다.
+ *
+ * 목록 컴포넌트는 글에 실린 `author` 만 본다. API 로 읽는 화면은 서버가 붙여 주고,
+ * 아직 mock 을 쓰는 화면은 여기서 붙인다 — 컴포넌트가 두 갈래를 알 필요가 없게.
+ */
+export const withMockAuthors = (list: Post[]): ListPost[] =>
+  list.map((p) => {
+    const u = getUser(p.authorId);
+    return {
+      ...p,
+      boardName: p.boardName ?? getBoard(p.boardSlug)?.name,
+      author: u ? { id: u.id, nickname: u.nickname, avatarColor: u.avatarColor, level: u.level } : null,
+    };
+  });
+
+/**
+ * @deprecated 세션에서 읽으세요 — `getSessionUser()` + `getUser(id)`.
+ * mock 전용 헬퍼라 로그인 상태를 반영하지 못합니다.
+ */
 export function getCurrentUser() {
   return getUser(CURRENT_USER_ID);
 }
@@ -72,7 +92,8 @@ export function getLogStats(userId: number) {
   const logs = getLogs(userId);
   const user = getUser(userId);
   return {
-    totalDives: user.totalDives,
+    // mock 에 없는 회원이면 가지고 있는 로그 수로 대신한다
+    totalDives: user?.totalDives ?? logs.length,
     maxDepth: Math.max(...logs.map((l) => l.maxDepth)),
     totalBottomTime: logs.reduce((s, l) => s + l.bottomTime, 0),
     avgWaterTemp: Math.round(logs.reduce((s, l) => s + l.waterTemp, 0) / logs.length),

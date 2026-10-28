@@ -1,3 +1,7 @@
 node_modules
 dist
 .env
+uploads
+
+# 게시판 비우기 전에 받아두는 백업 — 실제 글 내용이 들어 있으므로 커밋하지 않는다
+backups/

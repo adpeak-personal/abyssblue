@@ -12,7 +12,7 @@ import { BrandLogo } from "./Logo";
 import { FavoriteMenuEditor } from "./FavoriteMenuEditor";
 import { cn } from "@/lib/utils";
 
-export function MobileMenu({ me, cafeName, boardGroups }: { me: User; cafeName: string; boardGroups: BoardGroup[] }) {
+export function MobileMenu({ me, cafeName, boardGroups }: { me: Omit<User, "email"> | null; cafeName: string; boardGroups: BoardGroup[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const pathname = usePathname();
@@ -77,25 +77,39 @@ export function MobileMenu({ me, cafeName, boardGroups }: { me: User; cafeName: 
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          {/* 내 정보 */}
+          {/* 내 정보 — 로그인 전에는 로그인 안내 */}
           <div className="grad-deep m-4 rounded-xl p-4 text-white">
-            <Link href="/mypage" onClick={close} className="flex items-center gap-3">
-              <Avatar user={me} size={42} />
-              <div className="min-w-0">
-                <p className="truncate font-bold">{me.nickname}</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ocean-100">
-                  <LevelBadge level={me.level} /> {me.certLevel} · {me.totalDives}로그
-                </p>
-              </div>
-            </Link>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Link href="/write" onClick={close} className="flex items-center justify-center gap-1 rounded-lg bg-white py-2 text-sm font-bold text-ocean-800">
-                <PenSquare size={15} /> 글쓰기
-              </Link>
-              <Link href="/login" onClick={close} className="flex items-center justify-center gap-1 rounded-lg border border-white/40 py-2 text-sm font-medium">
-                <LogIn size={15} /> 로그인
-              </Link>
-            </div>
+            {me ? (
+              <>
+                <Link href="/mypage" onClick={close} className="flex items-center gap-3">
+                  <Avatar user={me} size={42} />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">{me.nickname}</p>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ocean-100">
+                      <LevelBadge level={me.level} /> {me.certLevel} · {me.totalDives}로그
+                    </p>
+                  </div>
+                </Link>
+                <div className="mt-3">
+                  <Link href="/write" onClick={close} className="flex items-center justify-center gap-1 rounded-lg bg-white py-2 text-sm font-bold text-ocean-800">
+                    <PenSquare size={15} /> 글쓰기
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold">로그인하고 함께 기록해요 🤿</p>
+                <p className="mt-1 text-xs text-ocean-100">글쓰기와 로그북은 로그인 후 이용할 수 있어요.</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link href="/login" onClick={close} className="flex items-center justify-center gap-1 rounded-lg bg-white py-2 text-sm font-bold text-ocean-800">
+                    <LogIn size={15} /> 로그인
+                  </Link>
+                  <Link href="/signup" onClick={close} className="flex items-center justify-center gap-1 rounded-lg border border-white/40 py-2 text-sm font-medium">
+                    회원가입
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 검색 */}
@@ -122,6 +136,7 @@ export function MobileMenu({ me, cafeName, boardGroups }: { me: User; cafeName: 
                     key={m.id}
                     href={m.href}
                     onClick={close}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-xl border px-1 py-3 text-center text-xs font-medium",
                       active ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-gray-100 text-gray-700 hover:bg-gray-50",
@@ -160,6 +175,7 @@ export function MobileMenu({ me, cafeName, boardGroups }: { me: User; cafeName: 
                         <Link
                           href={`/board/${b.slug}`}
                           onClick={close}
+                          aria-current={active ? "page" : undefined}
                           className={cn(
                             "block border-l-2 px-5 py-2.5 text-[15px]",
                             active ? "border-ocean-600 bg-ocean-50 font-semibold text-ocean-700" : "border-transparent text-gray-700 active:bg-gray-50",

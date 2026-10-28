@@ -20,16 +20,16 @@ export const CAFE_INFO = {
 };
 
 export const users: User[] = [
-  { id: 1, nickname: "블루매니저", email: "admin@abyssblue.kr", avatarColor: "#0e7490", level: "운영진", certAgency: "PADI", certLevel: "Course Director", totalDives: 2140, joinedAt: "2014-06-01", region: "제주", bio: "어비스 블루 운영진입니다. 안전다이빙!" },
-  { id: 2, nickname: "문어발다이버", email: "octo@test.kr", avatarColor: "#be185d", level: "고래", certAgency: "SSI", certLevel: "Master Diver", totalDives: 612, joinedAt: "2016-03-12", region: "서울" },
-  { id: 3, nickname: "고성물범", email: "seal@test.kr", avatarColor: "#4d7c0f", level: "산호", certAgency: "PADI", certLevel: "Rescue Diver", totalDives: 238, joinedAt: "2018-07-21", region: "강원" },
-  { id: 4, nickname: "니모찾아삼만리", email: "nemo@test.kr", avatarColor: "#ea580c", level: "파도", certAgency: "PADI", certLevel: "Advanced Open Water", totalDives: 87, joinedAt: "2021-05-02", region: "부산" },
-  { id: 5, nickname: "초보버블", email: "bubble@test.kr", avatarColor: "#7c3aed", level: "새싹", certAgency: "SSI", certLevel: "Open Water Diver", totalDives: 9, joinedAt: "2026-07-30", region: "경기" },
-  { id: 6, nickname: "만타헌터", email: "manta@test.kr", avatarColor: "#1d4ed8", level: "고래", certAgency: "NAUI", certLevel: "Instructor", totalDives: 1320, joinedAt: "2015-01-09", region: "세부" },
-  { id: 7, nickname: "울릉도오징어", email: "squid@test.kr", avatarColor: "#b45309", level: "산호", certAgency: "CMAS", certLevel: "2★ Diver", totalDives: 301, joinedAt: "2017-09-14", region: "경북" },
-  { id: 8, nickname: "서귀포해녀손녀", email: "haenyeo@test.kr", avatarColor: "#0f766e", level: "파도", certAgency: "PADI", certLevel: "Advanced Open Water", totalDives: 142, joinedAt: "2020-11-11", region: "제주" },
-  { id: 9, nickname: "나이트록스러버", email: "nitrox@test.kr", avatarColor: "#9333ea", level: "산호", certAgency: "SDI", certLevel: "Advanced Nitrox", totalDives: 410, joinedAt: "2019-02-28", region: "대구" },
-  { id: 10, nickname: "물속사진관", email: "photo@test.kr", avatarColor: "#db2777", level: "고래", certAgency: "PADI", certLevel: "Master Scuba Diver", totalDives: 780, joinedAt: "2016-08-08", region: "인천" },
+  { id: 1, nickname: "블루매니저", email: "admin@abyssblue.kr", avatarColor: "#0e7490", level: "운영진", certAgency: "PADI", certLevel: "Course Director", totalDives: 2140, joinedAt: "2014-06-01", bio: "어비스 블루 운영진입니다. 안전다이빙!" },
+  { id: 2, nickname: "문어발다이버", email: "octo@test.kr", avatarColor: "#be185d", level: "고래", certAgency: "SSI", certLevel: "Master Diver", totalDives: 612, joinedAt: "2016-03-12" },
+  { id: 3, nickname: "고성물범", email: "seal@test.kr", avatarColor: "#4d7c0f", level: "산호", certAgency: "PADI", certLevel: "Rescue Diver", totalDives: 238, joinedAt: "2018-07-21" },
+  { id: 4, nickname: "니모찾아삼만리", email: "nemo@test.kr", avatarColor: "#ea580c", level: "파도", certAgency: "PADI", certLevel: "Advanced Open Water", totalDives: 87, joinedAt: "2021-05-02" },
+  { id: 5, nickname: "초보버블", email: "bubble@test.kr", avatarColor: "#7c3aed", level: "새싹", certAgency: "SSI", certLevel: "Open Water Diver", totalDives: 9, joinedAt: "2026-07-30" },
+  { id: 6, nickname: "만타헌터", email: "manta@test.kr", avatarColor: "#1d4ed8", level: "고래", certAgency: "NAUI", certLevel: "Instructor", totalDives: 1320, joinedAt: "2015-01-09" },
+  { id: 7, nickname: "울릉도오징어", email: "squid@test.kr", avatarColor: "#b45309", level: "산호", certAgency: "CMAS", certLevel: "2★ Diver", totalDives: 301, joinedAt: "2017-09-14" },
+  { id: 8, nickname: "서귀포해녀손녀", email: "haenyeo@test.kr", avatarColor: "#0f766e", level: "파도", certAgency: "PADI", certLevel: "Advanced Open Water", totalDives: 142, joinedAt: "2020-11-11" },
+  { id: 9, nickname: "나이트록스러버", email: "nitrox@test.kr", avatarColor: "#9333ea", level: "산호", certAgency: "SDI", certLevel: "Advanced Nitrox", totalDives: 410, joinedAt: "2019-02-28" },
+  { id: 10, nickname: "물속사진관", email: "photo@test.kr", avatarColor: "#db2777", level: "고래", certAgency: "PADI", certLevel: "Master Scuba Diver", totalDives: 780, joinedAt: "2016-08-08" },
 ];
 
 export const CURRENT_USER_ID = 4;
@@ -49,7 +49,7 @@ export const boardGroups: BoardGroup[] = [
     boards: [
       { id: 3, slug: "free", name: "자유게시판", description: "다이버들의 자유로운 수다", type: "list", categories: ["잡담", "질문", "정보", "후기"] },
       { id: 4, slug: "review", name: "다이빙 후기", description: "국내·해외 다이빙 트립 후기", type: "list", categories: ["국내", "해외", "리조트", "리브어보드"] },
-      { id: 5, slug: "photo", name: "수중사진 갤러리", description: "내가 찍은 바닷속 한 장면", type: "gallery", categories: ["마크로", "와이드", "영상"] },
+      { id: 5, slug: "photo", name: "수중사진 갤러리", description: "내가 찍은 바닷속 한 장면", type: "gallery", writeMode: "photo", highQuality: true, categories: ["마크로", "와이드", "영상"] },
       { id: 6, slug: "qna", name: "초보 Q&A", description: "무엇이든 물어보세요, 선배 다이버가 답해드려요", type: "qna", categories: ["교육", "장비", "건강", "여행"] },
     ],
   },
@@ -58,7 +58,7 @@ export const boardGroups: BoardGroup[] = [
     name: "🤿 장비 & 장터",
     boards: [
       { id: 7, slug: "gear", name: "장비 리뷰", description: "BCD, 호흡기, 컴퓨터, 슈트 사용기", type: "list", categories: ["호흡기", "BCD", "컴퓨터", "슈트", "카메라"] },
-      { id: 8, slug: "market", name: "중고장터", description: "안전거래! 직거래 권장", type: "gallery", categories: ["팝니다", "삽니다", "나눔"] },
+      { id: 8, slug: "market", name: "중고장터", description: "안전거래! 직거래 권장", type: "gallery", writeMode: "photo", categories: ["팝니다", "삽니다", "나눔"] },
     ],
   },
   {

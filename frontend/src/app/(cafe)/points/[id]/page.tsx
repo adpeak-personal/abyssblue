@@ -1,20 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, Star, ArrowDownToLine, Eye, CalendarRange, Anchor, Store, Fish } from "lucide-react";
-import { diveLogs, posts } from "@/data/mock";
-import { getPoint, getUser } from "@/lib/data";
-import { Avatar, Card, SectionHeader, Tag, Thumb } from "@/components/ui";
+import { MapPin, ArrowDownToLine, Eye, CalendarRange, Anchor, Store, Fish, Image as ImageIcon } from "lucide-react";
+import { apiGet } from "@/lib/api";
+import { Card, SectionHeader, Tag, Thumb } from "@/components/ui";
 import { formatRelative } from "@/lib/utils";
+import type { DiveLog, DivePoint, ListPost, PostAuthor } from "@/types";
+
+/** 포인트에서 기록된 로그 — 목록에는 누가 썼는지도 함께 온다 */
+type LogWithUser = DiveLog & { user?: PostAuthor | null };
 
 export default async function PointDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const p = getPoint(Number(id));
+  const p = await apiGet<DivePoint>(`/points/${id}`);
   if (!p) notFound();
 
   const maxTemp = Math.max(...p.waterTemp.map((w) => w.temp));
   const minTemp = Math.min(...p.waterTemp.map((w) => w.temp));
-  const logs = diveLogs.filter((l) => l.pointId === p.id);
-  const relatedPosts = posts.filter((post) => post.title.includes(p.name.split(" ")[0]) || post.content.includes(p.name.split(" ")[0])).slice(0, 4);
+
+  // 이 포인트의 로그와, 포인트 이름이 들어간 게시글을 함께 읽는다
+  const keyword = p.name.split(" ")[0];
+  const [logs, related] = await Promise.all([
+    apiGet<LogWithUser[]>(`/logs?pointId=${p.id}&limit=5`),
+    apiGet<{ items: ListPost[] }>(`/posts?q=${encodeURIComponent(keyword)}&size=4`),
+  ]);
+  const relatedPosts = related?.items ?? [];
 
   return (
     <div className="space-y-5">
@@ -81,29 +90,16 @@ export default async function PointDetailPage({ params }: { params: Promise<{ id
             </div>
           </Card>
 
+          {/*
+            리뷰 목록은 아직 저장할 곳이 없다 (point_reviews 테이블 없음).
+            예전에는 가짜 후기 3건을 화면에 박아 두고 실제 회원 이름을 붙여 보여줬는데,
+            없는 말을 회원 이름으로 띄우는 셈이라 지웠다. 평점은 포인트 정보에 있는 실제 값이다.
+          */}
           <Card>
-            <SectionHeader title={<>⭐ 다이버 리뷰 <span className="text-amber-500">{p.rating}</span></>} sub={`${p.reviewCount}개`} />
-            <ul className="divide-y divide-gray-100">
-              {[
-                { uid: 3, rating: 5, text: "조류 없는 날 들어가면 천국입니다. 사진 찍기에도 좋아요." },
-                { uid: 8, rating: 4, text: "샵 픽업 서비스 좋았고, 포인트 브리핑이 꼼꼼했어요." },
-                { uid: 5, rating: 5, text: "초보인데 가이드가 잘 챙겨줘서 무섭지 않았어요!" },
-              ].map((r, i) => {
-                const u = getUser(r.uid);
-                return (
-                  <li key={i} className="flex gap-3 px-5 py-4">
-                    <Avatar user={u} size={32} />
-                    <div>
-                      <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                        {u.nickname}
-                        <span className="flex text-amber-400">{Array.from({ length: r.rating }).map((_, k) => <Star key={k} size={12} fill="currentColor" />)}</span>
-                      </p>
-                      <p className="mt-1 text-sm text-gray-700">{r.text}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <SectionHeader title={<>⭐ 다이버 리뷰 <span className="text-amber-500">{p.rating}</span></>} />
+            <p className="px-5 py-8 text-center text-sm text-gray-400">
+              리뷰 기능은 준비 중이에요. 지금은 이 포인트에서 기록된 로그로 분위기를 확인해 보세요 🤿
+            </p>
           </Card>
         </div>
 
@@ -128,10 +124,10 @@ export default async function PointDetailPage({ params }: { params: Promise<{ id
           <Card>
             <SectionHeader title="📘 최근 회원 로그" />
             <ul className="divide-y divide-gray-100">
-              {logs.length === 0 && <li className="px-5 py-6 text-center text-xs text-gray-400">아직 기록이 없어요</li>}
-              {logs.map((l) => (
+              {(logs ?? []).length === 0 && <li className="px-5 py-6 text-center text-xs text-gray-400">아직 기록이 없어요</li>}
+              {(logs ?? []).map((l) => (
                 <li key={l.id} className="px-5 py-3 text-xs">
-                  <p className="font-semibold text-gray-800">{getUser(l.userId).nickname} · {l.date.slice(5).replace("-", ".")}</p>
+                  <p className="font-semibold text-gray-800">{l.user?.nickname ?? "알 수 없음"} · {l.date.slice(5).replace("-", ".")}</p>
                   <p className="mt-0.5 text-gray-500">최대 {l.maxDepth}m · {l.bottomTime}분 · 수온 {l.waterTemp}° · 시야 {l.visibility}m</p>
                 </li>
               ))}
@@ -144,9 +140,18 @@ export default async function PointDetailPage({ params }: { params: Promise<{ id
               <ul className="py-1">
                 {relatedPosts.map((post) => (
                   <li key={post.id}>
+                    {/* 280px 사이드바라 PostRow(한 줄) 대신 2줄 배치 — 이미지 표시만 맞춘다 */}
                     <Link href={`/board/${post.boardSlug}/${post.id}`} className="block px-5 py-2 text-sm hover:bg-gray-50">
                       <span className="line-clamp-1 text-gray-700">{post.title}</span>
-                      <span className="text-xs text-gray-400">{formatRelative(post.createdAt)}</span>
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        {formatRelative(post.createdAt)}
+                        {post.hasImage && (
+                          <>
+                            <ImageIcon size={12} />
+                            {(post.imageCount ?? 0) > 1 && <span className="text-[11px]">{post.imageCount}</span>}
+                          </>
+                        )}
+                      </span>
                     </Link>
                   </li>
                 ))}

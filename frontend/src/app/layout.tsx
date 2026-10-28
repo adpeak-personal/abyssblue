@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
 
 const notoSansKr = Noto_Sans_KR({
@@ -18,11 +16,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <Header />
-        <div className="flex-1">{children}</div>
-        <Footer />
-      </body>
+      {/* 헤더/푸터는 각 레이아웃이 책임진다 — 어드민은 자체 헤더를 쓴다 */}
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

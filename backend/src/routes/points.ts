@@ -10,11 +10,11 @@ const pointQuerySchema = z.object({
 });
 
 export const pointRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/points", async (req) => listPoints(pointQuerySchema.parse(req.query)));
+  app.get("/points", async (req) => await listPoints(pointQuerySchema.parse(req.query)));
 
   app.get("/points/:id", async (req, reply) => {
     const { id } = idParamSchema.parse(req.params);
-    const point = findPointById(id);
+    const point = await findPointById(id);
     if (!point) return notFound(reply, "다이빙 포인트를 찾을 수 없습니다.");
     return point;
   });

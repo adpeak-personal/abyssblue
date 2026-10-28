@@ -1,19 +1,41 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, CornerDownRight, Siren } from "lucide-react";
-import { getBoard, getComments, getPost, getPosts, getUser } from "@/lib/data";
-import { Avatar, LevelBadge, Tag, Thumb } from "@/components/ui";
+import { MoreHorizontal } from "lucide-react";
+import { apiGet, type WithAuthor } from "@/lib/api";
+import type { Board, Comment, Post } from "@/types";
+import { Avatar, LevelBadge, Tag } from "@/components/ui";
+import { PostBody } from "@/components/board/PostBody";
+import { PostRow } from "@/components/board/PostRow";
+import { PostActions } from "@/components/board/PostActions";
+import { CommentSection } from "@/components/board/CommentSection";
+import { PostReactions } from "@/components/board/PostReactions";
+import { ReportButton } from "@/components/board/ReportButton";
+import { authHeaders, getSessionUser, isAdmin } from "@/lib/session";
 import { formatNumber, formatPrice, formatRelative } from "@/lib/utils";
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const post = getPost(Number(id));
-  const board = getBoard(slug);
+  const board = await apiGet<Board>(`/boards/${slug}`);
+  // 본문·댓글은 API 에서 읽는다 (방금 쓴 글이 바로 보여야 하므로)
+  // 쿠키를 실어 보내야 "내가 누른 좋아요·스크랩" 이 함께 내려온다
+  const post = await apiGet<
+    WithAuthor<Post> & {
+      comments: (WithAuthor<Comment> & { liked?: boolean })[];
+      liked: boolean;
+      scrapped: boolean;
+    }
+  >(`/posts/${id}`, await authHeaders());
   if (!post || !board) notFound();
 
-  const author = getUser(post.authorId);
-  const comments = getComments(post.id);
-  const related = getPosts({ boardSlug: slug, size: 6 }).items.filter((p) => p.id !== post.id).slice(0, 5);
+  const author = post.author;
+  const comments = post.comments;
+
+  // 수정·삭제는 본인과 운영진만 — 서버도 다시 확인한다
+  const me = await getSessionUser();
+  const canEdit = Boolean(me) && (me!.id === author.id || isAdmin(me));
+  // 같은 게시판 다른 글 — 지금 보는 글은 빼고 5개
+  const relatedList = await apiGet<{ items: Post[] }>(`/boards/${slug}/posts?size=6`);
+  const related = (relatedList?.items ?? []).filter((p) => p.id !== post.id).slice(0, 5);
 
   return (
     <div className="space-y-4">
@@ -34,7 +56,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 {author.certAgency} {author.certLevel} · {formatRelative(post.createdAt)} · 조회 {formatNumber(post.views)}
               </p>
             </div>
-            <button className="rounded-full p-2 text-gray-400 hover:bg-gray-100" aria-label="더보기"><MoreHorizontal size={18} /></button>
+            {canEdit ? (
+              <PostActions slug={slug} postId={post.id} />
+            ) : (
+              <button className="rounded-full p-2 text-gray-400 hover:bg-gray-100" aria-label="더보기"><MoreHorizontal size={18} /></button>
+            )}
           </div>
         </header>
 
@@ -46,63 +72,32 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               <button className="ml-auto rounded-lg bg-ocean-600 px-4 py-2 text-sm font-semibold text-white">1:1 채팅</button>
             </div>
           )}
-          {(post.hasImage || post.thumbColor) && <Thumb gradient={post.thumbColor ?? "lagoon"} className="mb-5 aspect-video w-full rounded-lg" />}
-          <div className="whitespace-pre-line text-[15px] leading-7 text-gray-800">
-            {post.content || "본문 내용이 들어갈 자리입니다. (더미 데이터)"}
-          </div>
+          {/*
+            예전에는 hasImage 면 여기에 그라디언트 상자를 깔았다 — 실제 이미지가 없던
+            시절의 자리 표시였다. 지금은 본문에 진짜 이미지가 들어 있어서,
+            글마다 의미 없는 파란 상자가 하나씩 더 붙는 꼴이었다.
+          */}
+          <PostBody post={post} />
 
-          <div className="mt-10 flex items-center justify-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:border-coral-400 hover:text-coral-500">
-              <Heart size={17} /> 좋아요 {post.likes}
-            </button>
-            <button className="rounded-full border border-gray-200 p-2.5 text-gray-500 hover:bg-gray-50" aria-label="스크랩"><Bookmark size={17} /></button>
-            <button className="rounded-full border border-gray-200 p-2.5 text-gray-500 hover:bg-gray-50" aria-label="공유"><Share2 size={17} /></button>
-          </div>
+          <PostReactions
+            postId={post.id}
+            initialLikes={post.likes}
+            initialLiked={post.liked}
+            initialScrapped={post.scrapped}
+            loggedIn={Boolean(me)}
+          />
         </div>
 
-        {/* 댓글 */}
-        <section className="border-t border-gray-100 px-5 py-5 sm:px-8">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
-            <MessageCircle size={16} /> 댓글 {post.commentCount}
-          </h2>
-          <ul className="mt-3 divide-y divide-gray-100">
-            {comments.map((c) => {
-              const u = getUser(c.authorId);
-              return (
-                <li key={c.id} className={`flex gap-3 py-3.5 ${c.parentId ? "pl-8" : ""}`}>
-                  {c.parentId && <CornerDownRight size={14} className="-ml-5 mt-1 shrink-0 text-gray-300" />}
-                  <Avatar user={u} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-                      {u.nickname}
-                      {u.id === author.id && <Tag tone="ocean">작성자</Tag>}
-                      <LevelBadge level={u.level} />
-                    </p>
-                    <p className="mt-1 text-sm text-gray-700">{c.content}</p>
-                    <p className="mt-1 flex gap-3 text-xs text-gray-400">
-                      <span>{formatRelative(c.createdAt)}</span>
-                      <button className="hover:text-gray-600">답글쓰기</button>
-                      <span className="flex items-center gap-0.5"><Heart size={11} /> {c.likes}</span>
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-            {comments.length === 0 && <li className="py-8 text-center text-sm text-gray-400">첫 댓글을 남겨보세요 🐠</li>}
-          </ul>
-          <form className="mt-3 rounded-lg border border-gray-200 p-3 focus-within:border-ocean-400">
-            <p className="text-xs font-semibold text-gray-700">댓글 쓰기</p>
-            <textarea rows={3} placeholder="댓글을 남겨보세요. 안전과 배려를 지켜주세요." className="mt-1 w-full resize-none text-sm outline-none" />
-            <div className="flex justify-end">
-              <button type="button" className="rounded-md bg-ocean-600 px-4 py-1.5 text-sm font-semibold text-white">등록</button>
-            </div>
-          </form>
-        </section>
+        {/* 댓글 — 작성·답글·수정·삭제가 다 여기서 일어난다 */}
+        <CommentSection postId={post.id} postAuthorId={author.id} initial={comments} me={me} />
       </article>
 
       <div className="flex items-center justify-between">
         <Link href={`/board/${slug}`} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">목록</Link>
-        <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500"><Siren size={13} /> 신고</button>
+        {/* 본인 글은 신고할 수 없다 — 서버도 막지만 버튼을 띄울 이유가 없다 */}
+        {me?.id !== author.id && (
+          <ReportButton targetType="post" targetId={post.id} loggedIn={Boolean(me)} />
+        )}
       </div>
 
       <section className="rounded-xl border border-gray-200 bg-white">
@@ -110,11 +105,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <ul className="py-1">
           {related.map((p) => (
             <li key={p.id}>
-              <Link href={`/board/${slug}/${p.id}`} className="flex items-center gap-2 px-5 py-2 text-sm hover:bg-gray-50">
-                <span className="line-clamp-1 text-gray-700">{p.title}</span>
-                {p.commentCount > 0 && <span className="shrink-0 text-xs text-coral-500">[{p.commentCount}]</span>}
-                <span className="ml-auto shrink-0 text-xs text-gray-400">{formatRelative(p.createdAt)}</span>
-              </Link>
+              <PostRow post={p} href={`/board/${slug}/${p.id}`} />
             </li>
           ))}
         </ul>

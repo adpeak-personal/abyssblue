@@ -19,11 +19,13 @@ DROP TABLE IF EXISTS dive_log_sightings;
 DROP TABLE IF EXISTS dive_logs;
 DROP TABLE IF EXISTS dive_point_water_temps;
 DROP TABLE IF EXISTS dive_points;
+DROP TABLE IF EXISTS uploads;
 DROP TABLE IF EXISTS post_likes;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS boards;
 DROP TABLE IF EXISTS board_groups;
+DROP TABLE IF EXISTS phone_verifications;
 DROP TABLE IF EXISTS users;
 
 -- ---------------------------------------------------------------------
@@ -36,17 +38,49 @@ CREATE TABLE users (
   nickname       VARCHAR(30)  NOT NULL,
   avatar_color   CHAR(7)      NOT NULL DEFAULT '#0e7490',
   level          ENUM('새싹','물방울','파도','산호','고래','운영진') NOT NULL DEFAULT '새싹',
+  -- 정지/탈퇴는 행을 지우지 않고 상태로 둔다. 글·댓글이 회원을 참조하고 있어서다
+  status         ENUM('활동','정지','탈퇴') NOT NULL DEFAULT '활동',
+  suspended_until DATETIME    NULL COMMENT 'NULL 이면 무기한 정지',
+  status_reason  VARCHAR(200) NULL COMMENT '정지·탈퇴 사유 (운영 기록용)',
   cert_agency    ENUM('PADI','SSI','NAUI','CMAS','SDI','KUDA') NOT NULL,
   cert_level     VARCHAR(100) NOT NULL,
   total_dives    INT UNSIGNED NOT NULL DEFAULT 0,
-  region         VARCHAR(50)  NOT NULL DEFAULT '',
   bio            VARCHAR(500) NULL,
+  phone          VARCHAR(20)  NULL COMMENT '휴대폰 인증 완료 번호 (숫자만). 중복 가입 차단에 쓴다',
+  provider       ENUM('kakao','naver') NULL COMMENT '소셜 로그인으로 만든 계정',
+  provider_id    VARCHAR(191) NULL COMMENT '소셜 쪽 고유 ID',
+  last_login_at  DATETIME     NULL,
   joined_at      DATE         NOT NULL DEFAULT (CURRENT_DATE),
   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
-  UNIQUE KEY uq_users_nickname (nickname)
+  UNIQUE KEY uq_users_nickname (nickname),
+  UNIQUE KEY uq_users_phone (phone),
+  -- 같은 소셜 계정으로 두 번 가입되지 않게
+  UNIQUE KEY uq_users_provider (provider, provider_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 휴대폰 인증
+--
+-- 가입 전 단계라 회원과 연결되지 않는다. 코드는 해시로 저장한다 —
+-- DB 가 새어도 진행 중인 인증을 가로챌 수 없게.
+-- ---------------------------------------------------------------------
+CREATE TABLE phone_verifications (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  phone       VARCHAR(20)  NOT NULL COMMENT '숫자만',
+  code_hash   CHAR(64)     NOT NULL COMMENT 'SHA-256(코드+번호)',
+  purpose     ENUM('signup','reset') NOT NULL DEFAULT 'signup',
+  attempts    TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '틀린 횟수',
+  verified_at DATETIME     NULL,
+  expires_at  DATETIME     NOT NULL,
+  ip          VARCHAR(45)  NULL COMMENT '발송 요청 IP — 남용 차단용',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_phone_verif_phone (phone, created_at),
+  KEY idx_phone_verif_ip (ip, created_at),
+  KEY idx_phone_verif_cleanup (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------------
@@ -66,7 +100,9 @@ CREATE TABLE boards (
   slug         VARCHAR(50)  NOT NULL,
   name         VARCHAR(100) NOT NULL,
   description  VARCHAR(255) NOT NULL DEFAULT '',
-  type         ENUM('list','gallery','qna') NOT NULL DEFAULT 'list',
+  type         ENUM('list','gallery','qna') NOT NULL DEFAULT 'list' COMMENT '목록 표시 형식',
+  write_mode   ENUM('editor','photo') NOT NULL DEFAULT 'editor' COMMENT '글 작성 화면 (에디터 / 사진 업로더)',
+  high_quality TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '사진 고화질 보관 여부',
   categories   JSON         NULL COMMENT '말머리 목록 (문자열 배열)',
   icon         VARCHAR(50)  NULL,
   sort_order   INT          NOT NULL DEFAULT 0,
@@ -86,7 +122,11 @@ CREATE TABLE posts (
   author_id      INT UNSIGNED NOT NULL,
   category       VARCHAR(30)  NULL COMMENT '말머리',
   title          VARCHAR(200) NOT NULL,
-  content        MEDIUMTEXT   NOT NULL,
+  content        MEDIUMTEXT   NOT NULL COMMENT '평문 — 목록 미리보기·전문검색용 (content_json 에서 파생)',
+  content_json   JSON         NULL COMMENT '정본 — ProseMirror 문서. 에디터로 쓴 글에만 있다',
+  content_html   MEDIUMTEXT   NULL COMMENT 'content_json 에서 서버가 파생·살균한 HTML. 읽기 화면은 이걸 쓴다',
+  thumbnail_url  VARCHAR(255) NULL COMMENT '목록 썸네일 — 본문 첫 이미지',
+  image_count    SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '본문 이미지 개수',
   views          INT UNSIGNED NOT NULL DEFAULT 0,
   likes          INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'post_likes 집계 캐시',
   comment_count  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'comments 집계 캐시',
@@ -135,6 +175,117 @@ CREATE TABLE post_likes (
   KEY idx_post_likes_user (user_id),
   CONSTRAINT fk_post_likes_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
   CONSTRAINT fk_post_likes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 스크랩 (북마크)
+--
+-- 좋아요와 따로 두는 이유: 좋아요는 글에 대한 평가라 집계가 공개되고,
+-- 스크랩은 "나중에 볼 글" 이라 본인에게만 보인다. posts 에 집계 컬럼도 두지 않는다.
+-- ---------------------------------------------------------------------
+CREATE TABLE post_scraps (
+  post_id     INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (post_id, user_id),
+  -- 마이페이지의 "내 스크랩" 은 최신순이라 user_id + created_at 로 찾는다
+  KEY idx_post_scraps_user (user_id, created_at),
+  CONSTRAINT fk_post_scraps_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+  CONSTRAINT fk_post_scraps_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 댓글 좋아요
+--
+-- comments.likes 는 이 테이블의 개수를 캐시한 값이다 — 목록에서 매번 세지 않으려고.
+-- ---------------------------------------------------------------------
+CREATE TABLE comment_likes (
+  comment_id  INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (comment_id, user_id),
+  KEY idx_comment_likes_user (user_id),
+  CONSTRAINT fk_comment_likes_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comment_likes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 신고
+--
+-- 글·댓글·회원을 같은 표로 받는다. target_type 으로 나누고, 대상이 지워져도
+-- 신고 기록은 남아야 하므로 외래키를 걸지 않는다 (운영 이력이기 때문).
+-- ---------------------------------------------------------------------
+CREATE TABLE reports (
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  target_type  ENUM('post','comment','user') NOT NULL,
+  target_id    INT UNSIGNED NOT NULL,
+  reporter_id  INT UNSIGNED NOT NULL,
+  reason       ENUM('스팸/광고','욕설/비방','음란물','허위정보','안전 위험','기타') NOT NULL,
+  detail       VARCHAR(500) NULL,
+  status       ENUM('접수','처리완료','반려') NOT NULL DEFAULT '접수',
+  handled_by   INT UNSIGNED NULL,
+  handled_at   DATETIME     NULL,
+  handler_memo VARCHAR(300) NULL,
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  -- 같은 사람이 같은 대상을 여러 번 신고하지 못하게
+  UNIQUE KEY uq_reports_once (target_type, target_id, reporter_id),
+  KEY idx_reports_status (status, created_at),
+  KEY idx_reports_target (target_type, target_id),
+  CONSTRAINT fk_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_reports_handler  FOREIGN KEY (handled_by)  REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 알림
+--
+-- 내 글에 달린 댓글, 내 댓글의 답글, 받은 좋아요 등.
+-- 읽음 여부만 들고 있고 본문은 만들 때 박아 둔다 — 원본이 지워져도 "무슨 알림이었는지"는
+-- 남아야 하고, 목록을 띄울 때마다 글·댓글을 조인하지 않기 위해서다.
+-- ---------------------------------------------------------------------
+CREATE TABLE notifications (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     INT UNSIGNED NOT NULL COMMENT '받는 사람',
+  actor_id    INT UNSIGNED NULL COMMENT '행동한 사람 (시스템 알림이면 NULL)',
+  type        ENUM('댓글','답글','좋아요','공지','운영') NOT NULL,
+  message     VARCHAR(200) NOT NULL,
+  link        VARCHAR(300) NOT NULL DEFAULT '/',
+  read_at     DATETIME     NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  -- 안 읽은 것부터 최신순으로 뽑는다
+  KEY idx_notifications_user (user_id, read_at, created_at),
+  CONSTRAINT fk_notifications_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------------
+-- 업로드 이미지
+--
+-- 파일은 업로드 즉시 저장되고, 글 등록 시 post_id 가 채워진다.
+-- 글을 안 쓰고 나간 파일은 post_id 가 NULL 로 남으므로 그것만 주기적으로 지운다:
+--   DELETE FROM uploads WHERE post_id IS NULL AND created_at < NOW() - INTERVAL 1 DAY;
+-- (파일시스템을 훑을 필요 없이 이 한 줄로 대상이 나온다)
+-- ---------------------------------------------------------------------
+CREATE TABLE uploads (
+  id            CHAR(36)     NOT NULL COMMENT 'UUID — 저장 파일명과 같다',
+  uploader_id   INT UNSIGNED NULL COMMENT '인증 도입 전이라 NULL 가능 — TODO: 세션에서 채운다',
+  post_id       INT UNSIGNED NULL COMMENT 'NULL 이면 아직 어느 글에도 안 쓰인 파일',
+  url           VARCHAR(255) NOT NULL COMMENT '본문용 상대경로 (/uploads/YYYY/MM/uuid.webp)',
+  thumb_url     VARCHAR(255) NULL COMMENT '목록 썸네일',
+  archive_url   VARCHAR(255) NULL COMMENT '고화질 보관본 (high_quality 게시판만)',
+  mime          VARCHAR(50)  NOT NULL,
+  bytes         INT UNSIGNED NOT NULL COMMENT '파생본 합계',
+  width         SMALLINT UNSIGNED NULL,
+  height        SMALLINT UNSIGNED NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_uploads_url (url),
+  KEY idx_uploads_orphan (post_id, created_at),
+  KEY idx_uploads_uploader (uploader_id, created_at),
+  -- 회원이 지워져도 기록은 남겨야 파일을 청소할 수 있다 (CASCADE 면 파일만 남고 추적 불가)
+  CONSTRAINT fk_uploads_uploader FOREIGN KEY (uploader_id) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT fk_uploads_post     FOREIGN KEY (post_id)     REFERENCES posts (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------------
@@ -196,6 +347,15 @@ CREATE TABLE dive_logs (
   tank_start   SMALLINT UNSIGNED NOT NULL COMMENT 'bar',
   tank_end     SMALLINT UNSIGNED NOT NULL COMMENT 'bar',
   buddy        VARCHAR(50)      NULL,
+  -- 작성 화면에서 받는 부가 정보. 다이브 컴퓨터가 주는 값이 아니라 선택 입력이다
+  dive_time    TIME             NULL COMMENT '입수 시각',
+  entry_type   ENUM('보트','비치') NULL,
+  current      ENUM('없음','약함','보통','강함') NULL COMMENT '조류',
+  weather      ENUM('맑음','흐림','비') NULL,
+  waves        ENUM('잔잔','약간','높음') NULL,
+  tank         VARCHAR(50)      NULL COMMENT '탱크 종류',
+  -- 끄면 포인트 상세의 "최근 회원 로그" 에 안 뜬다. 내 로그북에는 그대로 남는다
+  is_public    TINYINT(1)       NOT NULL DEFAULT 1,
   memo         TEXT             NOT NULL,
   rating       TINYINT UNSIGNED NOT NULL DEFAULT 3,
   created_at   DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,

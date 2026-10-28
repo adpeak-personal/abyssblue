@@ -1,6 +1,6 @@
 import { Search, Map } from "lucide-react";
-import type { Difficulty, Region } from "@/types";
-import { getPoints } from "@/lib/data";
+import type { Difficulty, DivePoint, Region } from "@/types";
+import { apiGet } from "@/lib/api";
 import { PointCard } from "@/components/diving/PointCard";
 import { FilterChip, PageTitle } from "@/components/ui";
 
@@ -11,7 +11,12 @@ const DIFFS: Difficulty[] = ["초급", "중급", "상급"];
 
 export default async function PointsPage({ searchParams }: { searchParams: Promise<{ region?: Region; difficulty?: Difficulty; q?: string }> }) {
   const { region, difficulty, q } = await searchParams;
-  const points = getPoints({ region, difficulty, q });
+  // 필터·검색은 서버가 처리한다 — 전부 받아와 화면에서 거르지 않는다
+  const sp = new URLSearchParams();
+  if (region) sp.set("region", region);
+  if (difficulty) sp.set("difficulty", difficulty);
+  if (q) sp.set("q", q);
+  const points = (await apiGet<DivePoint[]>(`/points${sp.size ? `?${sp}` : ""}`)) ?? [];
 
   const href = (next: { region?: string; difficulty?: string }) => {
     const sp = new URLSearchParams();

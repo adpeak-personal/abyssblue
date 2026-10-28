@@ -9,19 +9,48 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node scripts/check-schema.mjs && tsc --noEmit",
+    "check:schema": "node scripts/check-schema.mjs",
+    "db:check": "tsx scripts/db-check.ts",
+    "db:seed": "tsx scripts/seed-from-mock.ts",
+    "uploads:gc": "tsx scripts/uploads-gc.ts",
+    "gen:secret": "node scripts/gen-secret.mjs",
+    "db:devpw": "tsx scripts/set-dev-passwords.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "board:clear": "tsx scripts/clear-board.ts",
+    "db:recount": "tsx scripts/recount.ts",
+    "thumbs:backfill": "tsx scripts/backfill-thumbs.ts",
+    "members:clear": "tsx scripts/clear-members.ts",
+    "db:admins": "tsx scripts/ensure-admins.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",
+    "@fastify/jwt": "^10.2.3",
+    "@fastify/multipart": "^10.1.2",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.4",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/extension-text-align": "^3.31.3",
+    "@tiptap/html": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "dotenv": "^17.4.2",
     "fastify": "^5.12.4",
+    "fastify-plugin": "^6.0.0",
+    "mysql2": "^3.24.4",
+    "sanitize-html": "^2.17.7",
+    "sharp": "^0.35.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
+    "@types/sanitize-html": "^2.16.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }

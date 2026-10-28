@@ -1,15 +1,22 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus, ArrowDownToLine, Timer, Thermometer, Eye, Users, Star, Download } from "lucide-react";
-import { getCurrentUser, getLogStats, getLogs } from "@/lib/data";
+import { apiGet } from "@/lib/api";
+import { getCurrentProfile, getDiveStats } from "@/lib/session";
+import type { DiveLog } from "@/types";
 import { Card, PageTitle, SectionHeader, Tag } from "@/components/ui";
 
 export const metadata = { title: "나의 로그북" };
 
-export default function LogbookPage() {
-  const me = getCurrentUser();
-  const stats = getLogStats(me.id);
-  const logs = getLogs(me.id);
-  const maxDepthAll = Math.max(...logs.map((l) => l.maxDepth));
+export default async function LogbookPage() {
+  const me = await getCurrentProfile();
+  if (!me) redirect("/login?next=/logbook");
+  const [stats, logs] = await Promise.all([
+    getDiveStats(me.id),
+    apiGet<DiveLog[]>(`/logs?userId=${me.id}`).then((r) => r ?? []),
+  ]);
+  // 로그가 없으면 Math.max 가 -Infinity 라 그래프 높이가 NaN 이 된다
+  const maxDepthAll = logs.length ? Math.max(...logs.map((l) => l.maxDepth)) : 0;
 
   return (
     <div className="space-y-5">
@@ -45,6 +52,11 @@ export default function LogbookPage() {
         <Card>
           <SectionHeader title="최근 다이빙 최대수심" />
           <div className="flex h-48 items-start gap-1.5 px-4 pb-5 pt-4 sm:gap-3 sm:px-5">
+            {logs.length === 0 && (
+              <p className="flex h-full w-full items-center justify-center text-sm text-gray-400">
+                기록이 쌓이면 여기에 그래프가 나타나요
+              </p>
+            )}
             {[...logs].reverse().map((l) => (
               <div key={l.id} className="flex h-full min-w-0 flex-1 flex-col items-center">
                 <span className="text-[10px] text-gray-400">#{l.diveNo}</span>
@@ -86,6 +98,14 @@ export default function LogbookPage() {
       {/* 로그 리스트 */}
       <section className="space-y-3">
         <h2 className="text-[15px] font-bold text-gray-900">다이빙 기록</h2>
+        {logs.length === 0 && (
+          <p className="rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center text-sm text-gray-400">
+            아직 기록한 다이빙이 없어요.{" "}
+            <Link href="/logbook/new" className="font-semibold text-ocean-600 hover:underline">
+              첫 로그 남기기
+            </Link>
+          </p>
+        )}
         {logs.map((l) => (
           <article key={l.id} className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-4 sm:w-56">

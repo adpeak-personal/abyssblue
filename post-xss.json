@@ -1,0 +1,8 @@
+{"boardSlug":"free","authorId":4,"title":"XSS 시도","contentJson":{"type":"doc","content":[
+{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"javascript:alert(document.cookie)"}}],"text":"눌러보세요"}]},
+{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"https://example.com"}}],"text":"정상링크"}]},
+{"type":"image","attrs":{"src":"javascript:alert(1)","alt":"x"}},
+{"type":"image","attrs":{"src":"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==","alt":"y"}},
+{"type":"image","attrs":{"src":"/uploads/ok.png","alt":"\"><script>alert(1)</script>","onerror":"alert(1)"}},
+{"type":"paragraph","content":[{"type":"text","text":"<script>alert('탈출')</script>"}]}
+]}}

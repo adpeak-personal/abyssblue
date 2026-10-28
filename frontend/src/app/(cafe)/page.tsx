@@ -1,27 +1,48 @@
 import Link from "next/link";
 import { Flame, Megaphone, Waves, Wind, Thermometer, BookOpen, MapPinned, Users } from "lucide-react";
-import { CAFE_INFO, popularTags, posts, seaConditions } from "@/data/mock";
-import { getCurrentUser, getLogStats, getNotices, getPoints, getPopularPosts, getPosts, getTours, getUser } from "@/lib/data";
+import { CAFE_INFO, popularTags, seaConditions } from "@/data/mock";
+import { apiGet } from "@/lib/api";
+import { EMPTY_STATS, getDiveStats, getSessionUser } from "@/lib/session";
+import type { Board, DivePoint, ListPost } from "@/types";
+import type { TourWithHost } from "@/components/diving/TourCard";
 import { Card, SectionHeader, Tag, Thumb } from "@/components/ui";
 import { GalleryGrid } from "@/components/board/GalleryGrid";
+import { PostRow } from "@/components/board/PostRow";
 import { PointCard } from "@/components/diving/PointCard";
 import { TourCard } from "@/components/diving/TourCard";
-import { formatNumber, formatRelative } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 const STATUS_COLOR = { 좋음: "text-emerald-600 bg-emerald-50", 보통: "text-ocean-700 bg-ocean-50", 주의: "text-amber-600 bg-amber-50", 나쁨: "text-red-600 bg-red-50" };
 
-export default function HomePage() {
-  const me = getCurrentUser();
-  const stats = getLogStats(me.id);
-  const notices = getNotices();
-  const popular = getPopularPosts(8);
-  const gallery = posts.filter((p) => p.boardSlug === "photo").slice(0, 4);
-  const latestBoards = [
-    { slug: "free", name: "자유게시판" },
-    { slug: "review", name: "다이빙 후기" },
-    { slug: "qna", name: "초보 Q&A" },
-    { slug: "gear", name: "장비 리뷰" },
-  ];
+export default async function HomePage() {
+  const session = await getSessionUser();
+  // 비로그인도 홈은 보여야 한다 — 내 통계만 0 으로 둔다
+  const stats = session ? await getDiveStats(session.id) : EMPTY_STATS;
+  const [notices, popular, galleryList] = await Promise.all([
+    apiGet<ListPost[]>("/posts/notices?limit=3").then((r) => r ?? []),
+    apiGet<ListPost[]>("/posts/popular?limit=8").then((r) => r ?? []),
+    apiGet<{ items: ListPost[] }>("/boards/photo/posts?size=4"),
+  ]);
+  const gallery = galleryList?.items ?? [];
+  // 게시판별 최신글 — 이름과 글 모두 DB 에서. 어드민에서 이름을 바꾸면 여기도 따라온다
+  // 홈 카드에 쓸 모집중 투어와 포인트
+  const [allTours, points, overview] = await Promise.all([
+    apiGet<TourWithHost[]>("/tours"),
+    apiGet<DivePoint[]>("/points"),
+    apiGet<{ memberCount: number; newMembersToday: number; latestMember: string | null }>("/cafe"),
+  ]);
+  const openTours = (allTours ?? []).filter((t) => t.status !== "마감");
+
+  const LATEST_SLUGS = ["free", "review", "qna", "gear"];
+  const latestBoards = await Promise.all(
+    LATEST_SLUGS.map(async (slug) => {
+      const [board, list] = await Promise.all([
+        apiGet<Board>(`/boards/${slug}`),
+        apiGet<{ items: ListPost[] }>(`/boards/${slug}/posts?size=5`),
+      ]);
+      return { slug, name: board?.name ?? slug, items: list?.items ?? [] };
+    }),
+  );
 
   return (
     <div className="space-y-5">
@@ -47,9 +68,9 @@ export default function HomePage() {
       {/* 빠른 메뉴 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { href: "/points", icon: MapPinned, label: "포인트 찾기", sub: `${getPoints().length}곳 등록` },
+          { href: "/points", icon: MapPinned, label: "포인트 찾기", sub: `${(points ?? []).length}곳 등록` },
           { href: "/logbook", icon: BookOpen, label: "내 로그북", sub: `${stats.totalDives}로그` },
-          { href: "/tours", icon: Users, label: "투어 · 번개", sub: `${getTours().filter((t) => t.status !== "마감").length}건 모집중` },
+          { href: "/tours", icon: Users, label: "투어 · 번개", sub: `${openTours.length}건 모집중` },
           { href: "/board/buddy", icon: Waves, label: "버디 구하기", sub: "오늘 새 글 1" },
         ].map((q) => (
           <Link key={q.href} href={q.href} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3.5 hover:border-ocean-300 hover:shadow-sm">
@@ -67,12 +88,16 @@ export default function HomePage() {
         <ul className="divide-y divide-gray-100">
           {notices.map((n) => (
             <li key={n.id}>
-              <Link href={`/board/notice/${n.id}`} className="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-50">
-                <Megaphone size={15} className="shrink-0 text-ocean-600" />
-                <Tag tone="ocean">{n.category}</Tag>
-                <span className="line-clamp-1 text-gray-800">{n.title}</span>
-                <span className="ml-auto shrink-0 text-xs text-gray-400">{formatRelative(n.createdAt)}</span>
-              </Link>
+              <PostRow
+                post={n}
+                href={`/board/notice/${n.id}`}
+                leading={
+                  <>
+                    <Megaphone size={15} className="shrink-0 text-ocean-600" />
+                    <Tag tone="ocean">{n.category}</Tag>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
@@ -86,11 +111,12 @@ export default function HomePage() {
             <ol className="grid sm:grid-cols-2">
               {popular.map((p, i) => (
                 <li key={p.id} className="border-b border-gray-100 sm:odd:border-r">
-                  <Link href={`/board/${p.boardSlug}/${p.id}`} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50">
-                    <span className={`w-4 text-center text-sm font-extrabold ${i < 3 ? "text-coral-500" : "text-gray-400"}`}>{i + 1}</span>
-                    <span className="line-clamp-1 flex-1 text-sm text-gray-800">{p.title}</span>
-                    <span className="shrink-0 text-xs font-bold text-coral-500">[{p.commentCount}]</span>
-                  </Link>
+                  <PostRow
+                    post={p}
+                    href={`/board/${p.boardSlug}/${p.id}`}
+                    date={false}
+                    leading={<span className={`w-4 shrink-0 text-center text-sm font-extrabold ${i < 3 ? "text-coral-500" : "text-gray-400"}`}>{i + 1}</span>}
+                  />
                 </li>
               ))}
             </ol>
@@ -102,14 +128,9 @@ export default function HomePage() {
               <Card key={b.slug}>
                 <SectionHeader title={b.name} href={`/board/${b.slug}`} />
                 <ul className="py-1.5">
-                  {getPosts({ boardSlug: b.slug, size: 5 }).items.map((p) => (
+                  {b.items.map((p) => (
                     <li key={p.id}>
-                      <Link href={`/board/${b.slug}/${p.id}`} className="flex items-center gap-2 px-5 py-1.5 text-sm hover:bg-gray-50">
-                        {p.category && <span className="shrink-0 text-xs text-ocean-600">[{p.category}]</span>}
-                        <span className="line-clamp-1 text-gray-700">{p.title}</span>
-                        {p.commentCount > 0 && <span className="shrink-0 text-xs text-coral-500">[{p.commentCount}]</span>}
-                        <span className="ml-auto shrink-0 text-xs text-gray-400">{formatRelative(p.createdAt)}</span>
-                      </Link>
+                      <PostRow post={p} href={`/board/${b.slug}/${p.id}`} category="plain" />
                     </li>
                   ))}
                 </ul>
@@ -132,7 +153,7 @@ export default function HomePage() {
               <Link href="/points" className="text-xs text-gray-400 hover:text-ocean-600">전체보기</Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              {getPoints().slice(0, 3).map((p) => <PointCard key={p.id} point={p} />)}
+              {(points ?? []).slice(0, 3).map((p) => <PointCard key={p.id} point={p} />)}
             </div>
           </section>
         </div>
@@ -162,12 +183,14 @@ export default function HomePage() {
           <Card>
             <SectionHeader title="🤿 모집중인 투어" href="/tours" />
             <div className="space-y-3 p-4">
-              {getTours().filter((t) => t.status !== "마감").slice(0, 3).map((t) => <TourCard key={t.id} tour={t} compact />)}
+              {openTours.slice(0, 3).map((t) => <TourCard key={t.id} tour={t} compact />)}
             </div>
           </Card>
 
           <Card className="p-5">
-            <p className="text-[15px] font-bold text-gray-900">📘 {me.nickname}님의 로그</p>
+            <p className="text-[15px] font-bold text-gray-900">
+              📘 {session ? `${session.nickname}님의 로그` : "내 로그북"}
+            </p>
             <dl className="mt-3 grid grid-cols-3 text-center">
               <div><dt className="text-[11px] text-gray-400">총 다이빙</dt><dd className="text-lg font-extrabold text-ocean-700">{stats.totalDives}</dd></div>
               <div><dt className="text-[11px] text-gray-400">최대수심</dt><dd className="text-lg font-extrabold text-ocean-700">{stats.maxDepth}m</dd></div>
@@ -189,14 +212,22 @@ export default function HomePage() {
             <Thumb gradient="sunset" className="h-24" />
             <div className="p-4">
               <p className="text-sm font-bold text-gray-900">🙌 새로 가입한 다이버</p>
-              <p className="mt-1 text-xs text-gray-500">{getUser(5).nickname}님 외 오늘 {formatNumber(42)}명이 가입했어요</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {overview?.latestMember
+                  ? overview.newMembersToday > 1
+                    ? `${overview.latestMember}님 외 오늘 ${formatNumber(overview.newMembersToday - 1)}명이 가입했어요`
+                    : `${overview.latestMember}님이 새로 합류했어요`
+                  : "오늘 새로 가입한 다이버를 기다리고 있어요"}
+              </p>
               <Link href="/board/greeting" className="mt-2 inline-block text-xs font-semibold text-ocean-600">환영 인사 남기기 →</Link>
             </div>
           </Card>
         </div>
       </div>
 
-      <p className="text-center text-xs text-gray-400">{CAFE_INFO.name} 회원 {formatNumber(CAFE_INFO.memberCount)}명과 함께하는 중</p>
+      <p className="text-center text-xs text-gray-400">
+        {CAFE_INFO.name} 회원 {formatNumber(overview?.memberCount ?? 0)}명과 함께하는 중
+      </p>
     </div>
   );
 }

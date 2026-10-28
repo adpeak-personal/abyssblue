@@ -21,14 +21,14 @@ npm run build      # dist/ 로 컴파일
 npm start          # 빌드 결과 실행 (node dist/server.js)
 ```
 
-기본 주소: `http://localhost:4000` / 프론트엔드(`http://localhost:3000`)에 대해 CORS 허용.
+기본 주소: `http://localhost:5030` / 프론트엔드(`http://localhost:5000`)에 대해 CORS 허용.
 
 ### 환경변수 (`.env`)
 
 | 이름 | 기본값 | 설명 |
 | --- | --- | --- |
-| `PORT` | `4000` | 서버 포트 |
-| `CORS_ORIGIN` | `http://localhost:3000` | 허용 오리진 (쉼표로 여러 개) |
+| `PORT` | `5030` | 서버 포트 |
+| `CORS_ORIGIN` | `http://localhost:5000` | 허용 오리진 (쉼표로 여러 개) |
 | `DATABASE_URL` | `mysql://root:password@localhost:3306/abyssblue` | MySQL 전환 후 사용 (현재 미사용) |
 
 ## 폴더 구조

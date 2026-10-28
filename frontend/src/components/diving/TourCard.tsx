@@ -1,13 +1,15 @@
 import { CalendarDays, MapPin, Award } from "lucide-react";
-import type { Tour } from "@/types";
-import { getUser } from "@/lib/data";
+import type { Tour, PostAuthor } from "@/types";
 import { Tag, UserChip } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 
 const TYPE_TONE = { 번개: "coral", 정기투어: "ocean", 해외투어: "dark", 교육: "green" } as const;
 
-export function TourCard({ tour: t, compact }: { tour: Tour; compact?: boolean }) {
-  const host = getUser(t.hostId);
+/** 목록 API 가 주최자를 함께 내려준다 */
+export type TourWithHost = Tour & { host?: PostAuthor | null };
+
+export function TourCard({ tour: t, compact }: { tour: TourWithHost; compact?: boolean }) {
+  const host = t.host;
   const pct = Math.round((t.joined / t.capacity) * 100);
   const closed = t.status === "마감";
   return (

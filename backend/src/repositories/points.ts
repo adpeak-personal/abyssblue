@@ -1,6 +1,8 @@
-// 다이빙 포인트 저장소 — 현재는 인메모리 mock 배열 사용. MySQL 전환 시 이 파일만 교체.
-import { divePoints } from "../data/mock.js";
+// 다이빙 포인트 저장소 (MySQL)
+import { query, queryOne } from "../db/pool.js";
 import type { Difficulty, DivePoint, Region } from "../types.js";
+import { toPoint, type PointRow } from "./rows.js";
+import type { RowDataPacket } from "mysql2";
 
 export interface PointQuery {
   region?: Region;
@@ -8,19 +10,61 @@ export interface PointQuery {
   q?: string;
 }
 
-export function listPoints(query: PointQuery = {}): DivePoint[] {
-  const keyword = query.q?.trim().toLowerCase();
-  return divePoints.filter((p) => {
-    if (query.region && p.region !== query.region) return false;
-    if (query.difficulty && p.difficulty !== query.difficulty) return false;
-    if (keyword) {
-      const haystack = [p.name, p.area, p.country, p.description, ...p.marineLife].join(" ").toLowerCase();
-      if (!haystack.includes(keyword)) return false;
-    }
-    return true;
-  });
+interface TempRow extends RowDataPacket {
+  point_id: number;
+  month: number;
+  temp: string | number;
 }
 
-export function findPointById(id: number): DivePoint | undefined {
-  return divePoints.find((p) => p.id === id);
+/** 포인트들의 월별 수온을 한 번에 읽어 id 별로 묶는다 (포인트마다 조회하면 N+1) */
+async function waterTempsFor(ids: number[]) {
+  const map = new Map<number, DivePoint["waterTemp"]>();
+  if (ids.length === 0) return map;
+
+  const rows = await query<TempRow>(
+    `SELECT point_id, month, temp FROM dive_point_water_temps
+      WHERE point_id IN (${ids.map(() => "?").join(",")})
+      ORDER BY point_id, month`,
+    ids,
+  );
+  for (const r of rows) {
+    const list = map.get(r.point_id) ?? [];
+    list.push({ month: r.month, temp: Number(r.temp) });
+    map.set(r.point_id, list);
+  }
+  return map;
+}
+
+export async function listPoints(q: PointQuery = {}): Promise<DivePoint[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (q.region) {
+    where.push("region = ?");
+    params.push(q.region);
+  }
+  if (q.difficulty) {
+    where.push("difficulty = ?");
+    params.push(q.difficulty);
+  }
+  if (q.q?.trim()) {
+    // 이름·지역·설명과 생물 목록(JSON)까지 훑는다
+    where.push("(name LIKE ? OR area LIKE ? OR country LIKE ? OR description LIKE ? OR marine_life LIKE ?)");
+    const like = `%${q.q.trim()}%`;
+    params.push(like, like, like, like, like);
+  }
+
+  const rows = await query<PointRow>(
+    `SELECT * FROM dive_points ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY id`,
+    params,
+  );
+  const temps = await waterTempsFor(rows.map((r) => r.id));
+  return rows.map((r) => toPoint(r, temps.get(r.id) ?? []));
+}
+
+export async function findPointById(id: number): Promise<DivePoint | undefined> {
+  const row = await queryOne<PointRow>("SELECT * FROM dive_points WHERE id = ?", [id]);
+  if (!row) return undefined;
+  const temps = await waterTempsFor([id]);
+  return toPoint(row, temps.get(id) ?? []);
 }

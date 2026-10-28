@@ -8,7 +8,7 @@ USE abyssblue;
 SET NAMES utf8mb4;
 
 -- 회원
-INSERT INTO users (id, email, password_hash, nickname, avatar_color, level, cert_agency, cert_level, total_dives, region, bio, joined_at) VALUES
+INSERT INTO users (id, email, password_hash, nickname, avatar_color, level, cert_agency, cert_level, total_dives, bio, joined_at) VALUES
   (1, 'admin@abyssblue.kr', '$2b$10$DEV_PLACEHOLDER_HASH_REPLACE_ME', '블루매니저',     '#0e7490', '운영진', 'PADI', 'Course Director',     2140, '제주', '어비스 블루 운영진입니다. 안전다이빙!', '2014-06-01'),
   (3, 'seal@test.kr',     '$2b$10$DEV_PLACEHOLDER_HASH_REPLACE_ME', '고성물범',       '#4d7c0f', '산호',   'PADI', 'Rescue Diver',         238, '강원', NULL, '2018-07-21'),
   (4, 'nemo@test.kr',     '$2b$10$DEV_PLACEHOLDER_HASH_REPLACE_ME', '니모찾아삼만리', '#ea580c', '파도',   'PADI', 'Advanced Open Water',   87, '부산', NULL, '2021-05-02'),
@@ -19,11 +19,18 @@ INSERT INTO board_groups (id, name, sort_order) VALUES
   (1, '📢 어비스 블루 공지', 1),
   (2, '🌊 다이빙 이야기', 2);
 
-INSERT INTO boards (id, group_id, slug, name, description, type, categories, sort_order) VALUES
-  (1, 1, 'notice', '공지사항',   '카페 운영 공지와 이벤트 안내',                 'list', JSON_ARRAY('공지','이벤트','필독'), 1),
-  (2, 1, 'greeting', '가입인사', '반가워요! 자기소개를 남겨주세요',               'list', NULL, 2),
-  (3, 2, 'free', '자유게시판',   '다이버들의 자유로운 수다',                     'list', JSON_ARRAY('잡담','질문','정보','후기'), 1),
-  (6, 2, 'qna', '초보 Q&A',      '무엇이든 물어보세요, 선배 다이버가 답해드려요', 'qna',  JSON_ARRAY('교육','장비','건강','여행'), 4);
+-- write_mode: 'photo' 는 에디터 없이 사진 업로더로 쓰는 게시판
+-- high_quality: 사진이 콘텐츠인 게시판만 (용량을 훨씬 많이 쓴다)
+-- write_mode: 'photo' 는 에디터 없이 사진 업로더로 쓰는 게시판
+-- high_quality: 사진이 콘텐츠인 게시판만 (용량을 훨씬 많이 쓴다)
+INSERT INTO boards (id, group_id, slug, name, description, type, write_mode, high_quality, categories, sort_order) VALUES
+  (1, 1, 'notice', '공지사항',    '카페 운영 공지와 이벤트 안내',                  'list',    'editor', 0, JSON_ARRAY('공지','이벤트','필독'), 1),
+  (2, 1, 'greeting', '가입인사',  '반가워요! 자기소개를 남겨주세요',                'list',    'editor', 0, NULL, 2),
+  (3, 2, 'free', '자유게시판',    '다이버들의 자유로운 수다',                      'list',    'editor', 0, JSON_ARRAY('잡담','질문','정보','후기'), 1),
+  (4, 2, 'review', '다이빙 후기', '국내·해외 다이빙 트립 후기',                    'list',    'editor', 0, JSON_ARRAY('국내','해외','리조트','리브어보드'), 2),
+  (5, 2, 'photo', '수중사진 갤러리', '내가 찍은 바닷속 한 장면',                   'gallery', 'photo',  1, JSON_ARRAY('마크로','와이드','영상'), 3),
+  (6, 2, 'qna', '초보 Q&A',       '무엇이든 물어보세요, 선배 다이버가 답해드려요',  'qna',     'editor', 0, JSON_ARRAY('교육','장비','건강','여행'), 4),
+  (8, 2, 'market', '중고장터',    '안전거래! 직거래 권장',                         'gallery', 'photo',  0, JSON_ARRAY('팝니다','삽니다','나눔'), 5);
 
 -- 게시글
 INSERT INTO posts (id, board_id, author_id, category, title, content, views, likes, comment_count, is_notice, has_image, created_at) VALUES

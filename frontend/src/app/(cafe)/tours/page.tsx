@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
-import { getTours } from "@/lib/data";
-import { TourCard } from "@/components/diving/TourCard";
+import { apiGet } from "@/lib/api";
+import { TourCard, type TourWithHost } from "@/components/diving/TourCard";
 import { FilterChip, PageTitle } from "@/components/ui";
 
 export const metadata = { title: "투어 · 모집" };
@@ -9,7 +9,8 @@ const TYPES = ["번개", "정기투어", "해외투어", "교육"];
 
 export default async function ToursPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { type } = await searchParams;
-  const tours = getTours(type);
+  const tours =
+    (await apiGet<TourWithHost[]>(`/tours${type ? `?type=${encodeURIComponent(type)}` : ""}`)) ?? [];
   const open = tours.filter((t) => t.status !== "마감");
   const closed = tours.filter((t) => t.status === "마감");
 
@@ -29,6 +30,12 @@ export default async function ToursPage({ searchParams }: { searchParams: Promis
       <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         ⚠️ 참여 전 최소 자격 조건과 로그 수를 확인해주세요. 번개 다이빙은 개인 책임 하에 진행되며, 반드시 버디 시스템을 지켜주세요.
       </div>
+
+      {tours.length === 0 && (
+        <p className="rounded-xl border border-dashed border-gray-200 bg-white py-14 text-center text-sm text-gray-400">
+          모집 중인 투어가 없어요.
+        </p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {open.map((t) => <TourCard key={t.id} tour={t} />)}
