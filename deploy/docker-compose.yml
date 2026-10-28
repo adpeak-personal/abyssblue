@@ -1,0 +1,72 @@
+# ============================================================
+# abyssblue — 서버 배포용 (소스 없이 GHCR 이미지만 받아서 실행)
+#
+# 이미지는 GitHub Actions 가 main 푸시마다 빌드한다 (.github/workflows/deploy.yml).
+#
+# 서버 배치 (/opt/abyssblue):
+#   .env                  ← DB·JWT·S3·알리고 (600). deploy/.env.example 참고
+#   docker-compose.yml    ← 이 파일
+#   deploy.sh
+#
+# 배포 / 롤백 (/opt/abyssblue 에서, Actions 가 하는 일과 같다):
+#   docker compose pull
+#   docker compose up -d
+#   ABYSSBLUE_TAG=sha-abc1234 docker compose up -d     ← 이전 이미지로 롤백
+#
+# .env 를 고친 뒤 반영:  docker compose up -d api   (restart 는 .env 를 다시 안 읽는다)
+#   .env 맨 끝의 ABYSSBLUE_TAG 는 deploy.sh 가 적는 "지금 떠 있는 이미지" — 이게 있어야 로그인 없이 된다
+#
+# 외부 노출은 호스트 nginx (deploy/nginx-abyssblue.conf):
+#   /api/ · /uploads/ → 127.0.0.1:3061 (api) · 나머지 → 127.0.0.1:3060 (web)
+# DB 는 공용 DB 서버(158.247.244.167) — 그쪽은 이 서버 IP 만 3306 허용.
+#
+# ⚠ 포트 3060·3061 이 이 서버에서 비어 있는지 확인하고 올릴 것
+#   (같은 서버에 peakboard 가 3050·3051 을 쓰고 zzikko 도 올라가 있다):
+#   ss -ltnp | grep -E '306[01]'
+# ============================================================
+name: abyssblue
+
+services:
+  api:
+    image: ghcr.io/adpeak-personal/abyssblue-api:${ABYSSBLUE_TAG:-latest}
+    container_name: abyssblue-api
+    ports:
+      - "127.0.0.1:3061:5030"
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: "5030"
+      HOST: 0.0.0.0
+      TZ: Asia/Seoul
+    # ⚠ 업로드 파일은 S3 에 올라간다 (.env 의 AWS_* / IMAGE_BASE_URL).
+    #   그 값이 없으면 백엔드가 컨테이너 안 디스크(UPLOAD_DIR)에 저장하는데,
+    #   재배포하면 컨테이너가 바뀌면서 올린 이미지가 전부 사라진다. 운영에서는 S3 를 꼭 채울 것.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5030/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    init: true
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/adpeak-personal/abyssblue-web:${ABYSSBLUE_TAG:-latest}
+    container_name: abyssblue-web
+    ports:
+      - "127.0.0.1:3060:3000"
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Seoul
+      # 서버 컴포넌트가 백엔드를 부를 때 쓰는 주소 (런타임 값).
+      # 브라우저가 타는 /api rewrite 는 이미지 빌드 때 구워져 있다 (Dockerfile 의 API_ORIGIN).
+      API_BASE_URL: http://api:5030
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    init: true
+    restart: unless-stopped

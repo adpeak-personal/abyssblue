@@ -1,0 +1,18 @@
+node_modules
+dist
+.git
+.github
+npm-debug.log*
+# 환경변수는 실행할 때 주입한다 — 이미지에 구워 넣지 않는다
+.env
+.env.*
+backups
+uploads
+README.md
+CLAUDE.md
+.vscode
+.idea
+# 작업하다 남은 파일들
+*.png
+p.json
+gc-post-id.txt

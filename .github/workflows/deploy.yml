@@ -1,0 +1,111 @@
+# main 에 푸시하면: 타입 검사 → 이미지 빌드(GHCR) → 서버(141) 배포
+# dev 브랜치를 만들어도 이 파일은 그대로 둔다 — dev → main merge 가 곧 main 푸시다.
+# 수동 실행: Actions 탭 → deploy → Run workflow
+#
+# 필요한 저장소 Secrets (Settings → Secrets and variables → Actions)
+#   DEPLOY_HOST     141.164.60.58
+#   DEPLOY_USER     root
+#   DEPLOY_SSH_KEY  배포 전용 개인키 (공개키는 서버 ~/.ssh/authorized_keys 에)
+# GHCR 로그인은 워크플로 기본 토큰(GITHUB_TOKEN)을 쓴다 — 서버에는 배포하는 동안만 로그인했다가 로그아웃.
+#
+# DB 표 변경(db:migrate)은 여기서 하지 않는다. 운영 이미지에는 tsx 가 없고,
+# 표를 자동으로 건드리면 실패했을 때 되돌리기가 어렵다 — 손으로 돌린다 (deploy/README 참고).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_PREFIX: ghcr.io/adpeak-personal/abyssblue
+  # 프론트의 next.config.ts rewrite 목적지는 빌드 때 구워진다 — 런타임 env 로는 못 바꾼다.
+  # compose 안에서 api 컨테이너를 가리키는 주소를 빌드 인자로 넣는다.
+  INTERNAL_API: http://api:5030
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run typecheck
+        working-directory: backend
+      # 프론트 타입 검사는 도커 빌드(next build)에서 한다
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - app: api
+            context: backend
+          - app: web
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          build-args: |
+            API_ORIGIN=${{ env.INTERNAL_API }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.app }}:latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.app }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy
+      - name: SSH 준비
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+      - name: compose · 배포 스크립트 올리기
+        run: |
+          ssh "$TARGET" "mkdir -p /opt/abyssblue"
+          scp deploy/docker-compose.yml deploy/deploy.sh "$TARGET:/opt/abyssblue/"
+      # 토큰은 인자·로그에 안 남게 stdin 으로 넘긴다
+      - name: 이미지 받기 → 재시작
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$GHCR_TOKEN" | ssh "$TARGET" \
+            "GHCR_USER='${{ github.actor }}' ABYSSBLUE_TAG='sha-${{ github.sha }}' bash /opt/abyssblue/deploy.sh"

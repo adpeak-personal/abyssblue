@@ -1,0 +1,2 @@
+# 실제 값이 든 .env 는 서버(/opt/abyssblue)에만 둔다 — 보기용 .env.example 만 커밋한다
+.env
