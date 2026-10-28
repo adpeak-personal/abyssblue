@@ -35,7 +35,24 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      deployable: ${{ steps.gate.outputs.deployable }}
     steps:
+      # 배포 Secrets 가 아직 없을 수도 있다 (처음 세팅할 때). 그때 deploy 잡을 빨간 X 로
+      # 끝내지 않고 건너뛴다 — 이미지는 그대로 GHCR 에 올라간다.
+      # secrets 는 잡 단위 if 에서 못 읽어서, 여기서 출력값으로 넘긴다.
+      - name: 배포 Secrets 가 있는지
+        id: gate
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
+            echo "deployable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deployable=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DEPLOY_HOST / DEPLOY_SSH_KEY 가 없어 배포를 건너뜁니다 (이미지는 GHCR 에 올라갑니다). deploy/README.md 참고"
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -80,7 +97,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
   deploy:
-    needs: build
+    needs: [check, build]
+    # Secrets 가 없으면 건너뛴다 (실패가 아니라 회색 skipped 로 남는다)
+    if: needs.check.outputs.deployable == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
