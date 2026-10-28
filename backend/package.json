@@ -21,7 +21,8 @@
     "db:recount": "tsx scripts/recount.ts",
     "thumbs:backfill": "tsx scripts/backfill-thumbs.ts",
     "members:clear": "tsx scripts/clear-members.ts",
-    "db:admins": "tsx scripts/ensure-admins.ts"
+    "db:admins": "tsx scripts/ensure-admins.ts",
+    "db:export-config": "tsx scripts/export-config.ts"
   },
   "engines": {
     "node": ">=20"

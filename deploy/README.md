@@ -74,18 +74,53 @@ chmod 600 /opt/abyssblue/.env
 
 ### 4. DB
 
-공용 DB 서버(`158.247.244.167`)에 `abyssblue` DB 와 계정이 있어야 한다. **아직 확인되지 않았다.**
-없으면 만들고, 표는 내 PC 에서 터널을 열어 올린다:
+공용 DB 서버(`158.247.244.167`)에 DB·계정을 만들고 표를 올린다. 순서대로 세 파일이다.
+
+**(1) DB 와 계정** — `01-database.sql` 의 `<여기에_비밀번호>` 를 `/opt/abyssblue/.env` 의
+`DB_PASSWORD` 와 같은 값으로 바꿔서, DB 서버에서 root 로 실행한다:
+
+```bash
+scp deploy/01-database.sql root@158.247.244.167:/tmp/
+```
+
+```bash
+ssh root@158.247.244.167 "docker exec -i shared-db mysql -uroot -p < /tmp/01-database.sql && rm /tmp/01-database.sql"
+```
+
+**(2) 표** — 내 PC 에서 터널을 열어 올린다. 터널은 띄워 둔 채로 다른 창에서 진행한다:
 
 ```bash
 ssh -N -L 13306:127.0.0.1:3306 root@158.247.244.167
 ```
 
 ```bash
-cd backend && DB_HOST=127.0.0.1 DB_PORT=13306 DB_USER=abyssblue DB_PASSWORD='...' DB_NAME=abyssblue npm run db:migrate -- --yes
+mysql -h 127.0.0.1 -P 13306 -u abyssblue -p abyssblue < backend/src/db/schema.sql
 ```
 
-공용 DB 서버는 접속 IP 를 제한한다 — `141.164.60.58` 에서 3306 이 열려 있어야 한다.
+**(3) 게시판·다이브 포인트** — 운영진이 정하는 설정 데이터다. 빈 DB 에 이걸 안 넣으면
+사이트에 게시판이 하나도 없다:
+
+```bash
+mysql -h 127.0.0.1 -P 13306 -u abyssblue -p abyssblue < deploy/seed-config.sql
+```
+
+`seed-config.sql` 은 로컬 DB 에서 뽑은 것이다. 게시판을 고친 뒤 다시 뽑으려면:
+
+```bash
+cd backend && npm run db:export-config
+```
+
+**방화벽** — 공용 DB 서버는 접속 IP 를 제한한다. 앱 서버에서 3306 이 열려 있어야 한다:
+
+```bash
+ssh root@158.247.244.167 "ufw status | grep 3306 || echo '3306 규칙 없음 — ufw allow from 141.164.60.58 to any port 3306'"
+```
+
+**확인** — 앱 서버에서 실제로 붙는지:
+
+```bash
+ssh root@141.164.60.58 "docker run --rm mysql:8.0 mysql -h 158.247.244.167 -u abyssblue -p -e 'SELECT COUNT(*) FROM abyssblue.boards'"
+```
 
 ### 5. nginx
 
@@ -103,8 +138,25 @@ sudo certbot --nginx -d abyssblue.co.kr -d www.abyssblue.co.kr
 
 ### 스키마를 바꾼 배포
 
-워크플로는 DB 표를 건드리지 않는다. **푸시하기 전에** 위 4번의 `db:migrate` 를 먼저 돌린다.
-(운영 이미지에 `tsx` 가 없고, 표를 자동으로 건드리면 실패했을 때 되돌리기가 어렵다.)
+워크플로는 DB 표를 건드리지 않는다. 운영 이미지에 `tsx` 가 없고, 표를 자동으로
+건드리면 실패했을 때 되돌리기가 어렵다. **푸시하기 전에** 손으로 올린다.
+
+`schema.sql` 은 `DROP TABLE` 로 시작하므로 데이터가 든 DB 에 쓰면 안 된다 —
+변경분만 올리는 `db:migrate` 를 쓴다 (여러 번 돌려도 안전하다).
+
+터널을 띄워 두고:
+
+```bash
+ssh -N -L 13306:127.0.0.1:3306 root@158.247.244.167
+```
+
+무엇이 빠졌는지 먼저 보고:
+
+```bash
+cd backend && DB_HOST=127.0.0.1 DB_PORT=13306 DB_USER=abyssblue DB_PASSWORD='...' DB_NAME=abyssblue npm run db:migrate
+```
+
+맞으면 뒤에 `-- --yes` 를 붙여 다시 돌린다.
 
 ### 롤백
 
