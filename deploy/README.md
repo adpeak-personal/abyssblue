@@ -138,15 +138,28 @@ ssh root@141.164.60.58 "docker run --rm mysql:8.0 mysql -h 158.247.244.167 -u ab
 
 ### 5. nginx
 
-[`nginx-abyssblue.conf`](nginx-abyssblue.conf) 의 도메인을 실제 주소로 바꾼 뒤:
+도메인은 먼저 테스트용 `site-test001.shop` 으로 띄우고, 충분히 보고 나서
+`abyssblue.com` / `abyssblue.co.kr` 로 옮긴다. 테스트 도메인은 이미
+`141.164.60.58` 을 가리키고 있다(운영 도메인은 아직 다른 곳을 가리킨다).
 
 ```bash
-sudo cp nginx-abyssblue.conf /etc/nginx/sites-available/abyssblue && sudo ln -sf /etc/nginx/sites-available/abyssblue /etc/nginx/sites-enabled/ && sudo nginx -t && sudo systemctl reload nginx
+scp deploy/nginx-abyssblue.conf root@141.164.60.58:/tmp/
 ```
 
 ```bash
-sudo certbot --nginx -d abyssblue.co.kr -d www.abyssblue.co.kr
+ssh root@141.164.60.58 "cp /tmp/nginx-abyssblue.conf /etc/nginx/sites-available/abyssblue && ln -sf /etc/nginx/sites-available/abyssblue /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx"
 ```
+
+```bash
+ssh -t root@141.164.60.58 "certbot --nginx -d site-test001.shop -d www.site-test001.shop"
+```
+
+**운영 도메인으로 옮길 때** 세 곳을 같이 바꾼다. 하나만 바꾸면 로그인이 깨진다.
+
+1. `nginx-abyssblue.conf` 의 `server_name` 두 군데
+2. `/opt/abyssblue/.env` 의 `CORS_ORIGIN` — 첫 항목이 소셜 로그인 후 돌아올 주소다
+3. certbot 재실행
+4. 카카오·네이버 개발자센터의 리다이렉트 URI (쓰고 있다면)
 
 ## 평소
 
