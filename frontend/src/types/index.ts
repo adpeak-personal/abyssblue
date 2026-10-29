@@ -162,6 +162,8 @@ export interface Tour {
   joined: number;
   price: number;
   minCert: string;
+  /** 선착순이면 신청 즉시 확정, 승인제면 주최자가 확정한다 */
+  joinMode: "선착순" | "승인제";
   status: "모집중" | "마감임박" | "마감";
   description: string;
 }

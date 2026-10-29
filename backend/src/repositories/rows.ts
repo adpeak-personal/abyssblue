@@ -351,6 +351,7 @@ export interface TourRow extends RowDataPacket {
   joined: number;
   price: number;
   min_cert: string;
+  join_mode: Tour["joinMode"];
   status: Tour["status"];
   description: string;
 }
@@ -368,6 +369,7 @@ export const toTour = (r: TourRow): Tour => ({
   joined: r.joined,
   price: r.price,
   minCert: r.min_cert,
+  joinMode: r.join_mode,
   status: r.status,
   description: r.description,
 });

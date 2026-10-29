@@ -251,12 +251,12 @@ export const diveLogs: DiveLog[] = (([
 ] as Omit<DiveLog, "isPublic">[]).map((l) => ({ ...l, isPublic: true })));
 
 export const tours: Tour[] = [
-  { id: 1, title: "10월 정기투어 – 울진 나곡 1박 2일", type: "정기투어", pointName: "울진 나곡", region: "동해", startDate: "2026-10-10", endDate: "2026-10-11", hostId: 1, capacity: 16, joined: 12, price: 280000, minCert: "오픈워터", status: "모집중", description: "4깡 + 숙박 + 식사 포함. 장비 렌탈 별도." },
-  { id: 2, title: "이번주 토요일 양양 기사문 번개", type: "번개", pointName: "양양 기사문", region: "동해", startDate: "2026-09-20", endDate: "2026-09-20", hostId: 3, capacity: 6, joined: 5, price: 120000, minCert: "어드밴스", status: "마감임박", description: "현장 N빵. 카풀 가능(서울 출발 2자리)." },
-  { id: 3, title: "11월 코모도 리브어보드 7박", type: "해외투어", pointName: "코모도 국립공원", region: "해외", startDate: "2026-11-14", endDate: "2026-11-21", hostId: 6, capacity: 12, joined: 12, price: 3400000, minCert: "어드밴스 + 50로그", status: "마감", description: "만타 포인트, 조류 강함. 대기자 신청만 가능." },
-  { id: 4, title: "나이트록스 스페셜티 주말반", type: "교육", pointName: "서울 잠실 수영장 + 고성", region: "동해", startDate: "2026-09-27", endDate: "2026-09-28", hostId: 9, capacity: 8, joined: 3, price: 350000, minCert: "오픈워터", status: "모집중", description: "이론 + 개방수역 2깡. 교재비 포함." },
-  { id: 5, title: "추석 연휴 제주 서귀포 3박 4일", type: "정기투어", pointName: "문섬 · 섶섬 · 범섬", region: "제주", startDate: "2026-10-03", endDate: "2026-10-06", hostId: 8, capacity: 10, joined: 8, price: 690000, minCert: "오픈워터 + 20로그", status: "마감임박", description: "보트 6깡, 숙소 포함. 항공 개별." },
-  { id: 6, title: "통영 홍도 드리프트 다이빙 번개", type: "번개", pointName: "통영 홍도", region: "남해", startDate: "2026-10-18", endDate: "2026-10-18", hostId: 4, capacity: 8, joined: 2, price: 150000, minCert: "어드밴스 + 딥", status: "모집중", description: "조류 경험자 우대. SMB 필수 지참." },
+  { id: 1, title: "10월 정기투어 – 울진 나곡 1박 2일", type: "정기투어", pointName: "울진 나곡", region: "동해", startDate: "2026-10-10", endDate: "2026-10-11", hostId: 1, capacity: 16, joined: 12, price: 280000, minCert: "오픈워터", joinMode: "선착순", status: "모집중", description: "4깡 + 숙박 + 식사 포함. 장비 렌탈 별도." },
+  { id: 2, title: "이번주 토요일 양양 기사문 번개", type: "번개", pointName: "양양 기사문", region: "동해", startDate: "2026-09-20", endDate: "2026-09-20", hostId: 3, capacity: 6, joined: 5, price: 120000, minCert: "어드밴스", joinMode: "선착순", status: "마감임박", description: "현장 N빵. 카풀 가능(서울 출발 2자리)." },
+  { id: 3, title: "11월 코모도 리브어보드 7박", type: "해외투어", pointName: "코모도 국립공원", region: "해외", startDate: "2026-11-14", endDate: "2026-11-21", hostId: 6, capacity: 12, joined: 12, price: 3400000, minCert: "어드밴스 + 50로그", joinMode: "선착순", status: "마감", description: "만타 포인트, 조류 강함. 대기자 신청만 가능." },
+  { id: 4, title: "나이트록스 스페셜티 주말반", type: "교육", pointName: "서울 잠실 수영장 + 고성", region: "동해", startDate: "2026-09-27", endDate: "2026-09-28", hostId: 9, capacity: 8, joined: 3, price: 350000, minCert: "오픈워터", joinMode: "선착순", status: "모집중", description: "이론 + 개방수역 2깡. 교재비 포함." },
+  { id: 5, title: "추석 연휴 제주 서귀포 3박 4일", type: "정기투어", pointName: "문섬 · 섶섬 · 범섬", region: "제주", startDate: "2026-10-03", endDate: "2026-10-06", hostId: 8, capacity: 10, joined: 8, price: 690000, minCert: "오픈워터 + 20로그", joinMode: "선착순", status: "마감임박", description: "보트 6깡, 숙소 포함. 항공 개별." },
+  { id: 6, title: "통영 홍도 드리프트 다이빙 번개", type: "번개", pointName: "통영 홍도", region: "남해", startDate: "2026-10-18", endDate: "2026-10-18", hostId: 4, capacity: 8, joined: 2, price: 150000, minCert: "어드밴스 + 딥", joinMode: "선착순", status: "모집중", description: "조류 경험자 우대. SMB 필수 지참." },
 ];
 
 export const seaConditions: SeaCondition[] = [

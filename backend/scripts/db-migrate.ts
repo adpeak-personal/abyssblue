@@ -165,6 +165,17 @@ const steps: Step[] = [
            NOT NULL DEFAULT '새싹'`,
     ],
   },
+  {
+    name: "tours.join_mode — 선착순 / 승인제",
+    applied: () => columnExists("tours", "join_mode"),
+    sql: [
+      // 번개는 선착순이 편하고, 교육·해외투어는 자격을 보고 받아야 한다.
+      // 그래서 투어마다 고른다. 기존 투어는 선착순으로 둔다.
+      `ALTER TABLE tours
+         ADD COLUMN join_mode ENUM('선착순','승인제') NOT NULL DEFAULT '선착순'
+           COMMENT '선착순이면 신청 즉시 확정, 승인제면 주최자가 확정한다' AFTER min_cert`,
+    ],
+  },
 ];
 
 const confirmed = process.argv.includes("--yes");

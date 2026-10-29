@@ -395,6 +395,8 @@ CREATE TABLE tours (
   joined       SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'tour_participants 집계 캐시',
   price        INT UNSIGNED NOT NULL DEFAULT 0,
   min_cert     VARCHAR(100) NOT NULL DEFAULT '',
+  join_mode    ENUM('선착순','승인제') NOT NULL DEFAULT '선착순'
+                 COMMENT '선착순이면 신청 즉시 확정, 승인제면 주최자가 확정한다',
   status       ENUM('모집중','마감임박','마감') NOT NULL DEFAULT '모집중',
   description  TEXT         NOT NULL,
   created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
