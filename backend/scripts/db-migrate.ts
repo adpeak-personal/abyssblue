@@ -34,6 +34,16 @@ const columnExists = async (table: string, column: string) => {
   return Number(row?.n ?? 0) > 0;
 };
 
+const enumHasValue = async (table: string, column: string, value: string) => {
+  const row = await queryOne<RowDataPacket & { t: string }>(
+    `SELECT COLUMN_TYPE AS t FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [table, column],
+  );
+  // COLUMN_TYPE 은 "enum('새싹','물방울',...)" 형태로 온다
+  return (row?.t ?? "").includes(`'${value}'`);
+};
+
 const steps: Step[] = [
   {
     name: "post_scraps — 스크랩(북마크)",
@@ -142,6 +152,17 @@ const steps: Step[] = [
          CONSTRAINT fk_notifications_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
          CONSTRAINT fk_notifications_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE SET NULL
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    ],
+  },
+  {
+    name: "users.level — 강사 등급",
+    applied: () => enumHasValue("users", "level", "강사"),
+    sql: [
+      // 운영진이 자격을 확인하고 직접 부여하는 등급이다. 활동량으로 자동 승급되지
+      // 않는다 (lib/levels.ts 의 MANUAL_LEVELS). 투어 개설 권한이 여기 걸린다.
+      `ALTER TABLE users
+         MODIFY COLUMN level ENUM('새싹','물방울','파도','산호','고래','강사','운영진')
+           NOT NULL DEFAULT '새싹'`,
     ],
   },
 ];

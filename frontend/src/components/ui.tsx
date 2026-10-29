@@ -36,6 +36,7 @@ const LEVEL_STYLE: Record<MemberLevel, { icon: string; cls: string }> = {
   파도: { icon: "🌊", cls: "bg-ocean-50 text-ocean-700" },
   산호: { icon: "🪸", cls: "bg-rose-50 text-rose-700" },
   고래: { icon: "🐋", cls: "bg-indigo-50 text-indigo-700" },
+  강사: { icon: "🎓", cls: "bg-amber-100 text-amber-800" },
   운영진: { icon: "⚓", cls: "bg-ocean-900 text-white" },
 };
 

@@ -2,7 +2,7 @@
 
 export type CertAgency = "PADI" | "SSI" | "NAUI" | "CMAS" | "SDI" | "KUDA";
 
-export type MemberLevel = "새싹" | "물방울" | "파도" | "산호" | "고래" | "운영진";
+export type MemberLevel = "새싹" | "물방울" | "파도" | "산호" | "고래" | "강사" | "운영진";
 
 export type SocialProvider = "kakao" | "naver";
 

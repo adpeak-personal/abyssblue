@@ -41,7 +41,7 @@ import { unlinkUploadsOfPost } from "../repositories/uploads.js";
 import { forResponse } from "./posts.js";
 import { findUserById, findUserByNickname, updateProfile } from "../repositories/users.js";
 
-const LEVELS = ["새싹", "물방울", "파도", "산호", "고래", "운영진"] as const;
+const LEVELS = ["새싹", "물방울", "파도", "산호", "고래", "강사", "운영진"] as const;
 const STATUSES = ["활동", "정지", "탈퇴"] as const;
 
 const memberQuerySchema = z.object({

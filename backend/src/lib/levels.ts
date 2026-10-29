@@ -47,8 +47,15 @@ export const LEVEL_RULES: LevelRule[] = [
   },
 ];
 
-/** 운영진은 활동량과 무관한 자리라 자동 승급 대상이 아니다 */
-export const isAutoLevel = (level: MemberLevel) => level !== "운영진";
+/**
+ * 활동량으로 오르내리지 않는 등급.
+ *
+ * 운영진은 자리이고 강사는 자격이다 — 둘 다 글·댓글 수로 매길 것이 아니라
+ * 운영진이 확인하고 직접 부여한다. 어드민 회원 관리에서 올린다.
+ */
+const MANUAL_LEVELS: MemberLevel[] = ["강사", "운영진"];
+
+export const isAutoLevel = (level: MemberLevel) => !MANUAL_LEVELS.includes(level);
 
 /**
  * 활동량으로 도달 가능한 가장 높은 등급.
@@ -63,7 +70,7 @@ export function levelFor(activity: Activity): MemberLevel {
   return "새싹";
 }
 
-const ORDER: MemberLevel[] = ["새싹", "물방울", "파도", "산호", "고래", "운영진"];
+const ORDER: MemberLevel[] = ["새싹", "물방울", "파도", "산호", "고래", "강사", "운영진"];
 
 /** 승급만 허용 — 내려가야 하면 undefined */
 export function promotionFor(current: MemberLevel, activity: Activity): MemberLevel | undefined {

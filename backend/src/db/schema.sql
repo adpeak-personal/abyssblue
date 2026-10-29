@@ -37,7 +37,7 @@ CREATE TABLE users (
   password_hash  VARCHAR(255) NOT NULL COMMENT 'bcrypt 해시',
   nickname       VARCHAR(30)  NOT NULL,
   avatar_color   CHAR(7)      NOT NULL DEFAULT '#0e7490',
-  level          ENUM('새싹','물방울','파도','산호','고래','운영진') NOT NULL DEFAULT '새싹',
+  level          ENUM('새싹','물방울','파도','산호','고래','강사','운영진') NOT NULL DEFAULT '새싹',
   -- 정지/탈퇴는 행을 지우지 않고 상태로 둔다. 글·댓글이 회원을 참조하고 있어서다
   status         ENUM('활동','정지','탈퇴') NOT NULL DEFAULT '활동',
   suspended_until DATETIME    NULL COMMENT 'NULL 이면 무기한 정지',

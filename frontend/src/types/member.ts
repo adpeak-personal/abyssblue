@@ -1,6 +1,6 @@
 import type { MemberLevel } from "@/types";
 
-export const MEMBER_LEVELS: MemberLevel[] = ["새싹", "물방울", "파도", "산호", "고래", "운영진"];
+export const MEMBER_LEVELS: MemberLevel[] = ["새싹", "물방울", "파도", "산호", "고래", "강사", "운영진"];
 export const MEMBER_STATUSES = ["활동", "정지", "탈퇴"] as const;
 export type MemberStatus = (typeof MEMBER_STATUSES)[number];
 

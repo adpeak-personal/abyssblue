@@ -75,6 +75,10 @@ export default async function MyPage() {
             </li>
           ))}
         </ol>
+        <p className="mt-3 text-xs text-gray-500">
+          <LevelBadge level="강사" /> 와 <LevelBadge level="운영진" /> 은 활동량으로 오르지 않습니다.
+          자격을 확인한 뒤 운영진이 직접 부여합니다.
+        </p>
       </Card>
 
       <section>
