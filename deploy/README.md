@@ -136,30 +136,41 @@ ssh root@158.247.244.167 "ufw status | grep 3306 || echo '3306 규칙 없음 —
 ssh root@141.164.60.58 "docker run --rm mysql:8.0 mysql -h 158.247.244.167 -u abyssblue -p -e 'SELECT COUNT(*) FROM abyssblue.boards'"
 ```
 
-### 5. nginx
+### 5. nginx  (2026-10-29 완료)
 
-도메인은 먼저 테스트용 `site-test001.shop` 으로 띄우고, 충분히 보고 나서
-`abyssblue.com` / `abyssblue.co.kr` 로 옮긴다. 테스트 도메인은 이미
-`141.164.60.58` 을 가리키고 있다(운영 도메인은 아직 다른 곳을 가리킨다).
+**이 서버는 `/etc/nginx/sites-enabled/default` 한 파일에 여러 사이트가 들어 있다.**
+site-test001.shop · testby001.shop · atb.co.kr 이 각각 server 블록으로 있고,
+인증서도 certbot 이 이미 발급해 두었다.
+
+그래서 새 설정 파일을 `sites-enabled` 에 넣으면 안 된다 — `server_name` 이 중복되어
+`nginx -t` 가 "duplicate listen options" 로 실패하고, 모든 사이트가 멈출 수 있다.
+`default` 안의 해당 블록을 고친다. (`deploy/nginx-abyssblue.conf` 는 참고용 사본이다.)
+
+실제로 한 일은 세 줄 추가와 한 줄 수정이다:
+
+- `proxy_pass` 를 `127.0.0.1:3000`(옛 프론트) → `127.0.0.1:3060`(새 프론트)
+- `client_max_body_size 20m;` — nginx 기본값이 1m 이라 없으면 사진 올릴 때 413 으로 막힌다
+- `if ($host = www...) { return 301 ...; }` — www 를 비-www 로 넘긴다
+
+**백업은 `sites-enabled` 밖에 둘 것.** nginx 는 그 폴더의 *모든* 파일을 읽으므로
+`default.bak` 같은 파일도 설정으로 읽혀서 중복 오류가 난다. `/root/nginx-backups/` 에 둔다.
+
+고친 뒤에는 반드시 순서대로:
 
 ```bash
-scp deploy/nginx-abyssblue.conf root@141.164.60.58:/tmp/
+ssh root@141.164.60.58 "nginx -t && systemctl reload nginx"
 ```
 
-```bash
-ssh root@141.164.60.58 "cp /tmp/nginx-abyssblue.conf /etc/nginx/sites-available/abyssblue && ln -sf /etc/nginx/sites-available/abyssblue /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx"
-```
+`nginx -t` 가 실패하면 reload 하지 말고 백업을 되돌린다.
 
-```bash
-ssh -t root@141.164.60.58 "certbot --nginx -d site-test001.shop -d www.site-test001.shop"
-```
+**운영 도메인으로 옮길 때** 네 곳을 같이 바꾼다. 하나만 바꾸면 로그인이 깨진다.
 
-**운영 도메인으로 옮길 때** 세 곳을 같이 바꾼다. 하나만 바꾸면 로그인이 깨진다.
-
-1. `nginx-abyssblue.conf` 의 `server_name` 두 군데
+1. `default` 의 `server_name` (과 www 리다이렉트의 호스트명)
 2. `/opt/abyssblue/.env` 의 `CORS_ORIGIN` — 첫 항목이 소셜 로그인 후 돌아올 주소다
-3. certbot 재실행
+3. `certbot --nginx -d <새 도메인>`
 4. 카카오·네이버 개발자센터의 리다이렉트 URI (쓰고 있다면)
+
+`abyssblue.com` · `abyssblue.co.kr` 은 아직 다른 서버를 가리키므로 DNS 변경이 먼저다.
 
 ## 평소
 
