@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarDays, MapPin, Award } from "lucide-react";
 import type { Tour, PostAuthor } from "@/types";
 import { Tag, UserChip } from "@/components/ui";
@@ -18,7 +19,9 @@ export function TourCard({ tour: t, compact }: { tour: TourWithHost; compact?: b
         <Tag tone={TYPE_TONE[t.type]}>{t.type}</Tag>
         <span className={`text-xs font-bold ${t.status === "마감임박" ? "text-coral-500" : closed ? "text-gray-400" : "text-ocean-600"}`}>{t.status}</span>
       </div>
-      <h3 className="mt-2 line-clamp-1 font-bold text-gray-900">{t.title}</h3>
+      <h3 className="mt-2 line-clamp-1 font-bold text-gray-900">
+        <Link href={`/tours/${t.id}`} className="hover:text-ocean-700">{t.title}</Link>
+      </h3>
       <ul className="mt-2 space-y-1 text-xs text-gray-500">
         <li className="flex items-center gap-1.5"><CalendarDays size={13} /> {t.startDate.slice(5).replace("-", ".")}{t.endDate !== t.startDate && ` ~ ${t.endDate.slice(5).replace("-", ".")}`}</li>
         <li className="flex items-center gap-1.5"><MapPin size={13} /> {t.pointName}</li>
@@ -38,9 +41,14 @@ export function TourCard({ tour: t, compact }: { tour: TourWithHost; compact?: b
           <p className="mt-3 line-clamp-2 text-sm text-gray-600">{t.description}</p>
           <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
             <UserChip user={host} />
-            <button disabled={closed} className="rounded-lg bg-ocean-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-ocean-700 disabled:bg-gray-300">
-              {closed ? "대기 신청" : "참여하기"}
-            </button>
+            <Link
+              href={`/tours/${t.id}`}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                closed ? "bg-gray-100 text-gray-500" : "bg-ocean-600 text-white hover:bg-ocean-700"
+              }`}
+            >
+              {closed ? "자세히 보기" : "참여하기"}
+            </Link>
           </div>
         </>
       )}
